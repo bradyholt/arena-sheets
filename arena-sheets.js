@@ -1,12 +1,12 @@
 "use strict";
 
-let Spreadsheet = require('edit-google-spreadsheet');
 let config = require('./config');
 let _ = require('lodash');
 let fs = require('fs');
 let google = require('googleapis');
 let OAuth2Client = google.auth.OAuth2;
-let spreadsheetManager = require('./lib/spreadsheet-manager');
+let spreadsheetsManager = require('./lib/spreadsheets');
+let spreadsheetEditor = require('edit-google-spreadsheet');
 var tabletojson = require('tabletojson');
 
 let oauth2Client = new OAuth2Client(config.client_id, config.client_secret, 'http://www.myauthorizedredirecturl.com');
@@ -26,17 +26,23 @@ oauth2Client.refreshAccessToken(function(err, tokens) {
 });
 
 function start() {
-    var manager = new spreadsheetManager(oauth2Client);
+    var spreadsheets = new spreadsheetsManager(oauth2Client);
     var classes = require('./data/classes.json');
+
+    var worksheets = [
+        { name: 'Roster', rows: 500, col: 15 },
+        { name: 'Visitors', rows: 500, col: 15 },
+        { name: 'Attendance', rows: 500, col: 15 },
+        { name: 'Email Lists', rows: 500, col: 15 },
+        { name: 'Inactive', rows: 500, col: 15 }
+    ];
 
     classes.forEach(function(c){
         let classData = readData(c.id);
-        manager.prepSheet( {
+        spreadsheets.prepSheet( {
             name: c.name,
             templateId: config.template_spreadsheet_id,
-            worksheetNames: ['Roster', 'Visitors', 'Attendance', 'Email Lists', 'Inactive'],
-            worksheetRows: 500,
-            worksheetColumns: 15
+            worksheets: worksheets
         }).then(function(sheetData) {
                 var roster = getRosterData(classData.roster.data, function(status, role) {
                     return status == "Active" && (role == "Member" || role.indexOf('Leader') > -1);
@@ -85,7 +91,7 @@ function readData(classId) {
 }
 
 function writeData(spreadsheetId, worksheetId, data) {
-    Spreadsheet.load({
+    spreadsheetEditor.load({
         debug: true,
         spreadsheetId: spreadsheetId,
         worksheetId: worksheetId,

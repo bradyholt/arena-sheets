@@ -4,6 +4,8 @@
     "access_token": "",
     "refresh_token": "",
     "template_spreadsheet_id": "",
+    "arena_url": "",
     "arena_username": "",
-    "arena_password": ""
+    "arena_password": "",
+    "scrape_data_path": ""
 }

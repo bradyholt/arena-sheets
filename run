@@ -1,2 +1,2 @@
 PHANTOMJS_EXECUTABLE=/usr/local/lib/node_modules/casperjs/node_modules/phantomjs/lib/phantom/bin/phantomjs casperjs scrape.js
-node update.js
+node arena-sheets.js

@@ -1,13 +1,10 @@
 {
-  "name": "arena",
+  "name": "arena-sheets",
   "version": "1.0.0",
-  "description": "",
-  "main": "convert.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
+  "description": "Pulls data out of Shelby Arena and pushes to Google Sheets",
+  "main": "arena-sheets.js",
+  "author": "Brady Holt",
+  "license": "MIT",
   "dependencies": {
     "edit-google-spreadsheet": "^0.2.19",
     "lodash": "^3.10.1",
