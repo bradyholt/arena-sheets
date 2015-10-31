@@ -7,6 +7,7 @@
   "author": "Brady Holt",
   "license": "MIT",
   "dependencies": {
+    "casperjs": "^1.1.0-beta3",
     "edit-google-spreadsheet": "^0.2.19",
     "lodash": "^3.10.1",
     "phantomjs": "^1.9.8",
