@@ -1,9 +1,11 @@
 var casper = require('casper').create({
-    clientScripts: ['casper-scripts/jquery-1.11.3.min.js']
+    clientScripts: ['jquery-1.11.3.min.js']
 });
 var util = require('utils');
 var fs = require('fs');
-var config = require('config');
+var config = require('../config');
+
+var dataOutPath = casper.cli.args[0];
 
 casper.start(config.arena_url + '/default.aspx?page=3062', function() {
     this.fill('form', {
@@ -40,7 +42,7 @@ casper.thenOpen(config.arena_url + '/default.aspx?page=3071').waitForText("Selec
 });
 
 function writeMetaFile(classes){
-    fs.write(config.scrape_data_path + "classes.json", JSON.stringify(classes), 'w');
+    fs.write(dataOutPath + "classes.json", JSON.stringify(classes), 'w');
 }
 
 function downloadRoster(classId, className) {
@@ -73,7 +75,7 @@ function downloadRoster(classId, className) {
          });
 
          this.echo(className + ": Downloading roster data...");
-         casper.download(form_info.action, config.scrape_data_path + classId + "_roster.html", "POST", form_info.post);
+         casper.download(form_info.action, dataOutPath + classId + "_roster.html", "POST", form_info.post);
          this.echo(className + ": Roster data downloaded.");
     });
 }
@@ -108,7 +110,7 @@ function downloadAttendance(classId, className) {
          });
 
          this.echo(className + ": Downloading attendance data...");
-         casper.download(form_info.action, config.scrape_data_path + classId + "_attendance.html", "POST", form_info.post);
+         casper.download(form_info.action, dataOutPath + classId + "_attendance.html", "POST", form_info.post);
          this.echo(className + ": Attendance data downloaded.");
     });
 }

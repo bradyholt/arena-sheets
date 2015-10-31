@@ -5,27 +5,41 @@ let _ = require('lodash');
 let fs = require('fs');
 let google = require('googleapis');
 let OAuth2Client = google.auth.OAuth2;
+let scraperWraper = require('./lib/scraper-wrapper');
 let spreadsheetsManager = require('./lib/spreadsheets');
 let spreadsheetEditor = require('edit-google-spreadsheet');
 var tabletojson = require('tabletojson');
 
-let oauth2Client = new OAuth2Client(config.client_id, config.client_secret, 'http://www.myauthorizedredirecturl.com');
 
-oauth2Client.setCredentials({
-    access_token: config.access_token,
-    refresh_token: config.refresh_token
+scraperWraper.startScrape({
+    data_path: config.scrape_data_path
+}, function(code){
+    if (code != 0) {
+        throw new Error('Scrape process exited with error code: ' + code);
+    }
+
+    startUpdateSheets();
 });
 
-oauth2Client.refreshAccessToken(function(err, tokens) {
+function startUpdateSheets(){
+    let oauth2Client = new OAuth2Client(config.client_id, config.client_secret, 'http://www.myauthorizedredirecturl.com');
+
     oauth2Client.setCredentials({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token
+        access_token: config.access_token,
+        refresh_token: config.refresh_token
     });
 
-    start();
-});
+    oauth2Client.refreshAccessToken(function(err, tokens) {
+        oauth2Client.setCredentials({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token
+        });
 
-function start() {
+        updateSheets(oauth2Client);
+    });
+}
+
+function updateSheets(oauth2Client) {
     var spreadsheets = new spreadsheetsManager(oauth2Client);
     var classes = require('./data/classes.json');
 

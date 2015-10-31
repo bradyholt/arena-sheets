@@ -1,6 +1,7 @@
 {
   "name": "arena-sheets",
   "version": "1.0.0",
+  "private": true,
   "description": "Pulls data out of Shelby Arena and pushes to Google Sheets",
   "main": "arena-sheets.js",
   "author": "Brady Holt",
@@ -8,6 +9,7 @@
   "dependencies": {
     "edit-google-spreadsheet": "^0.2.19",
     "lodash": "^3.10.1",
+    "phantomjs": "^1.9.8",
     "request": "^2.65.0",
     "xml2json": "^0.9.0"
   }

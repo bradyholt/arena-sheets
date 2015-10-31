@@ -7,5 +7,6 @@
     "arena_url": "",
     "arena_username": "",
     "arena_password": "",
-    "scrape_data_path": ""
+    "scrape_data_path": "",
+    "phantomjs_exec": ""
 }
