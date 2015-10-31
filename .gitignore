@@ -2,3 +2,4 @@ auth/
 data/
 node_modules/
 config.json
+ansible/**/production

@@ -6,12 +6,18 @@
   "main": "arena-sheets.js",
   "author": "Brady Holt",
   "license": "MIT",
+  "scripts": {
+    "provision": "ansible-playbook -i ansible/production ansible/provision.yml",
+    "deploy": "ansible-playbook -i ansible/production ansible/deploy.yml"
+  },
   "dependencies": {
     "casperjs": "^1.1.0-beta3",
     "edit-google-spreadsheet": "^0.2.19",
+    "googleapis": "^2.1.6",
     "lodash": "^3.10.1",
     "phantomjs": "^1.9.8",
     "request": "^2.65.0",
+    "tabletojson": "^0.2.1",
     "xml2json": "^0.9.0"
   }
 }

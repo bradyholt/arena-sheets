@@ -1,0 +1,7 @@
+- name: copy files
+  synchronize: src=../../../../ dest={{ deploy_directory }} delete=yes rsync_opts=--exclude=.git/,--exclude=log/,--exclude=node_modules/,--exclude=tmp/cache
+- name: npm install
+  npm: path={{ deploy_directory }}
+- name: setup cron job
+  cron: name="arena-sheets" minute="0" hour="8" weekday="1"
+    job="node {{ deploy_directory }}/{{ app_main }}"

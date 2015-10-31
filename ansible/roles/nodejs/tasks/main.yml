@@ -1,0 +1,15 @@
+- name: install the nodesource PPA
+  shell: curl -sL https://deb.nodesource.com/{{ nodesource_version }} | sudo bash -
+- name: install compile libraries
+  apt: name={{ item }} state=present
+  with_items:
+    - make
+    - gcc
+    - g++
+    - libfontconfig
+- name: install libfontconfig (needed for phantomjs)
+  apt: name={{ item }} state=present
+  with_items:
+    - libfontconfig
+- name: install node
+  apt: name=nodejs state=present
