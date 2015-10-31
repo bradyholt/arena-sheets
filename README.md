@@ -12,3 +12,9 @@ The following files need to be created before use.  There are [file].example fil
 
 - **npm run provision** - Provisions a server to host this app (Ubuntu 14 is assumed)
 - **npm run deploy** - Deploys the app to the provisioned server
+
+## TODO
+
+- Change the way raw scrape files are organized
+- Implement Google Sheets *prepend* functionality to prevent overwriting
+- Format out data that gets written to Google Sheets
