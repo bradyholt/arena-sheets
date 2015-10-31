@@ -5,7 +5,10 @@ var util = require('utils');
 var fs = require('fs');
 var config = require('../config');
 
-var dataOutPath = casper.cli.args[0];
+dataOutPath = "./data/";
+if (casper.cli.args[0]) {
+    var dataOutPath = casper.cli.args[0];
+}
 
 casper.start(config.arena_url + '/default.aspx?page=3062', function() {
     this.fill('form', {
