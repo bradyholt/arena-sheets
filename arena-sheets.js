@@ -11,15 +11,17 @@ let spreadsheetEditor = require('edit-google-spreadsheet');
 var tabletojson = require('tabletojson');
 
 
-scraperWraper.startScrape({
-    data_path: config.scrape_data_path
-}, function(code){
-    if (code != 0) {
-        throw new Error('Scrape process exited with error code: ' + code);
-    }
+function startScrape() {
+    scraperWraper.startScrape({
+        data_path: config.scrape_data_path
+    }, function(code){
+        if (code != 0) {
+            throw new Error('Scrape process exited with error code: ' + code);
+        }
 
-    startUpdateSheets();
-});
+        startUpdateSheets();
+    });
+}
 
 function startUpdateSheets(){
     let oauth2Client = new OAuth2Client(config.client_id, config.client_secret, 'http://www.myauthorizedredirecturl.com');
@@ -58,19 +60,26 @@ function updateSheets(oauth2Client) {
             templateId: config.template_spreadsheet_id,
             worksheets: worksheets
         }).then(function(sheetData) {
-                var roster = getRosterData(classData.roster.data, function(status, role) {
-                    return status == "Active" && (role == "Member" || role.indexOf('Leader') > -1);
+                var members = getRosterData(classData.roster, function(d) {
+                    return d.status == "Active" && memberFilter(d.role);
                 });
 
-                var inactive = getRosterData(classData.roster.data, function(status, role) {
-                    return status == "Inactive";
+                var visitors = getRosterData(classData.roster, function(d) {
+                    return d.status == "Active" && !memberFilter(d.role);
+                });
+
+                var inactive = getRosterData(classData.roster, function(d) {
+                    return d.status == "Inactive";
                 });
 
                 var attendance = getAttendanceData(classData.attendance);
+                var emailLists = getEmailLists(classData.roster);
 
-                writeData(sheetData.spreadsheetId, sheetData.worksheets['Roster'], roster);
-                writeData(sheetData.spreadsheetId, sheetData.worksheets['Inactive'], inactive);
+                writeData(sheetData.spreadsheetId, sheetData.worksheets['Roster'], members);
+                writeData(sheetData.spreadsheetId, sheetData.worksheets['Visitors'], visitors);
                 writeData(sheetData.spreadsheetId, sheetData.worksheets['Attendance'], attendance);
+                writeData(sheetData.spreadsheetId, sheetData.worksheets['Email Lists'], emailLists);
+                writeData(sheetData.spreadsheetId, sheetData.worksheets['Inactive'], inactive);
 
             }).catch(function(err) {
                 console.log(err);
@@ -82,24 +91,30 @@ function readData(classId) {
     let rosterHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_roster.html', 'utf8');
     let rosterData = tabletojson.convert(rosterHtml)[0];
 
-    let attendanceHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_attendance.html', 'utf8');
-    let attendanceData = tabletojson.convert(attendanceHtml)[0];
-
     let fieldMappings = _.invert(rosterData[0]);
     rosterData.shift();
 
     let rosterFormatted = _.map(rosterData, function(d) {
-        return [d[fieldMappings["last_name"]], d[fieldMappings["first_name"]], d[fieldMappings["gender"]], d[fieldMappings["person_birthdate"]],
-            d[fieldMappings["person_email"]], d[fieldMappings["home_phone"]], d[fieldMappings["mobile_phone"]],
-            d[fieldMappings["address"]], d[fieldMappings["city"]], d[fieldMappings["state"]], d[fieldMappings["postal_code"]],
-            d[fieldMappings["record_status"]], d[fieldMappings["member_role"]]
-        ];
+        return {
+            lastName: d[fieldMappings["last_name"]],
+            firstName: d[fieldMappings["first_name"]],
+            gender: (d[fieldMappings["gender"]] || "") == "0" ? "M" : "F",
+            dob: (d[fieldMappings["person_birthdate"]] && d[fieldMappings["person_birthdate"]].length >= 10) ? d[fieldMappings["person_birthdate"]].substring(0,9) : "",
+            email: d[fieldMappings["person_email"]],
+            cellPhone: d[fieldMappings["mobile_phone"]],
+            homePhone: d[fieldMappings["home_phone"]],
+            address: d[fieldMappings["address"]],
+            cityStateZip: (d[fieldMappings["city"]] || "") + ", " + (d[fieldMappings["state"]] || "") + " " + (d[fieldMappings["postal_code"]] || ""),
+            role: d[fieldMappings["member_role"]],
+            status: d[fieldMappings["date_inactive"]].length > 0 ? "Inactive" : d[fieldMappings["record_status"]]
+        };
     });
+
+    let attendanceHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_attendance.html', 'utf8');
+    let attendanceData = tabletojson.convert(attendanceHtml)[0];
+
     return {
-        roster: {
-            fields: fieldMappings,
-            data: rosterFormatted
-        },
+        roster: rosterFormatted,
         attendance: attendanceData
     };
 }
@@ -110,7 +125,6 @@ function writeData(spreadsheetId, worksheetId, data) {
         spreadsheetId: spreadsheetId,
         worksheetId: worksheetId,
 
-        // OR 3. OAuth2 (See get_oauth2_permissions.js)
         oauth2: {
             client_id: config.client_id,
             client_secret: config.client_secret,
@@ -125,21 +139,82 @@ function writeData(spreadsheetId, worksheetId, data) {
     });
 }
 
+function memberFilter(role){
+    return (role.indexOf('Visit') == -1 && !_.contains(['YVNA', 'YMNA'], role));
+}
+
 function getRosterData(sourceData, filter) {
-    return _.filter(sourceData, function(d) {
-        return filter(d[11], d[12]);
+    var filtered = _.filter(sourceData, filter);
+
+    var sorted = _.sortBy(filtered, function(d) {
+        return d.lastName;
     });
+
+    var formatted = _.map(sorted, function(d){
+        return [
+            d.lastName,
+            d.firstName,
+            d.gender,
+            d.dob,
+            d.email,
+            d.cellPhone,
+            d.homePhone,
+            d.address,
+            d.cityStateZip,
+            d.role
+        ];
+    });
+
+    //add header
+    var header = ['Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role'];
+    formatted.unshift(header);
+
+    return formatted;
 }
 
 function getAttendanceData(sourceData) {
+    var attendance = sourceData;
+
+    //add header with attendance dates
+    // i.e.:  Name,	10/25/2015,	10/18/2015
     for (var i = 9; i <= 20; i++) {
-        var dirtyDate = sourceData[0][i.toString()];
-        sourceData[0][i.toString()] = dirtyDate.substring(0, dirtyDate.length - 2);
+        var dirtyDate = attendance[0][i.toString()];
+        attendance[0][i.toString()] = dirtyDate.substring(0, dirtyDate.length - 2);
     }
 
-    var attenanceFormatted = _.map(sourceData, function(d) {
+    //ad
+    var attenanceFormatted = _.map(attendance, function(d) {
         return [d["0"], d["20"], d["19"], d["18"], d["17"], d["16"], d["15"], d["14"], d["13"], d["12"], d["11"], d["10"], d["9"]];
     });
 
     return attenanceFormatted;
+}
+
+function getEmailLists(sourceData){
+    var active = _.filter(sourceData, function(d){ return d.status == "Active" });
+
+    var memberEmails = generateEmailList(active, function(d){ return memberFilter(d.role); });
+    var visitorEmails = generateEmailList(active, function(d){ return !memberFilter(d.role); });
+    var menEmails = generateEmailList(active, function(d){ return d.gender == "M"; });
+    var womenEmails = generateEmailList(active, function(d){ return d.gender == "F" });
+
+    return [
+            ['Members', memberEmails],
+            ['Visitors', visitorEmails],
+            ['Men', menEmails],
+            ['Women', womenEmails]
+    ];
+}
+
+function generateEmailList(source, filter){
+    var filtered = _.filter(source, filter);
+    var formatted = _.map(filtered, function(d) { return d.email; }).join(", ");
+    return formatted;
+
+}
+
+if (_.contains(process.argv, '--no-scrape')){
+    startUpdateSheets();
+} else {
+    startScrape();
 }
