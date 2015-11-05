@@ -1,5 +1,8 @@
 auth/
 data/
+debug/
 node_modules/
 config.json
 ansible/**/production
+scratch.js
+*.log

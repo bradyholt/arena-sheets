@@ -13,7 +13,7 @@ var tabletojson = require('tabletojson');
 
 function startScrape() {
     scraperWraper.startScrape({
-        data_path: config.scrape_data_path
+        data_path: config.scrape_data_path,
     }, function(code){
         if (code != 0) {
             throw new Error('Scrape process exited with error code: ' + code);
@@ -68,10 +68,7 @@ function updateSheets(oauth2Client) {
                     return d.status == "Active" && !memberFilter(d.role);
                 });
 
-                var inactive = getRosterData(classData.roster, function(d) {
-                    return d.status == "Inactive";
-                });
-
+                var inactive = getInactiveData(classData.roster);
                 var attendance = getAttendanceData(classData.attendance);
                 var emailLists = getEmailLists(classData.roster);
 
@@ -99,14 +96,15 @@ function readData(classId) {
             lastName: d[fieldMappings["last_name"]],
             firstName: d[fieldMappings["first_name"]],
             gender: (d[fieldMappings["gender"]] || "") == "0" ? "M" : "F",
-            dob: (d[fieldMappings["person_birthdate"]] && d[fieldMappings["person_birthdate"]].length >= 10) ? d[fieldMappings["person_birthdate"]].substring(0,9) : "",
+            dob: (d[fieldMappings["person_birthdate"]] && d[fieldMappings["person_birthdate"]].length > 8) ? d[fieldMappings["person_birthdate"]].substring(0,d[fieldMappings["person_birthdate"]].indexOf(' ')) : "",
             email: d[fieldMappings["person_email"]],
             cellPhone: d[fieldMappings["mobile_phone"]],
             homePhone: d[fieldMappings["home_phone"]],
             address: d[fieldMappings["address"]],
             cityStateZip: (d[fieldMappings["city"]] || "") + ", " + (d[fieldMappings["state"]] || "") + " " + (d[fieldMappings["postal_code"]] || ""),
             role: d[fieldMappings["member_role"]],
-            status: d[fieldMappings["date_inactive"]].length > 0 ? "Inactive" : d[fieldMappings["record_status"]]
+            status: d[fieldMappings["date_inactive"]].length > 0 ? "Inactive" : d[fieldMappings["record_status"]],
+            inactiveDate: (d[fieldMappings["date_inactive"]] && d[fieldMappings["date_inactive"]].length >= 8) ? d[fieldMappings["date_inactive"]].substring(0,d[fieldMappings["date_inactive"]].indexOf(' ')) : "",
         };
     });
 
@@ -141,6 +139,43 @@ function writeData(spreadsheetId, worksheetId, data) {
 
 function memberFilter(role){
     return (role.indexOf('Visit') == -1 && !_.contains(['YVNA', 'YMNA'], role));
+}
+
+function getInactiveData(sourceData, filter) {
+    var filtered = _.filter(sourceData, function(d) {
+        return d.status == "Inactive";
+    });
+
+    var formatted = _.map(filtered, function(d){
+        return [
+            d.inactiveDate,
+            d.lastName,
+            d.firstName,
+            d.gender,
+            d.dob,
+            d.email,
+            d.cellPhone,
+            d.homePhone,
+            d.address,
+            d.cityStateZip
+        ];
+    });
+
+    var sorted = _.sortBy(formatted, function(d){
+        var inactiveDateFormatted = '';
+        if (d[0]){
+          var dateGroups = d[0].match(/(\d+)\/(\d+)\/(\d+)/i);
+          inactiveDateFormatted = `${dateGroups[3]}-${dateGroups[1]}-${dateGroups[2]}`;
+        }
+
+        return inactiveDateFormatted;
+    }).reverse();
+
+    //add header
+    var header = ['Inactive As Of', 'Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip'];
+    sorted.unshift(header);
+
+    return sorted;
 }
 
 function getRosterData(sourceData, filter) {

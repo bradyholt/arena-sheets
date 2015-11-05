@@ -8,12 +8,14 @@
   "license": "MIT",
   "scripts": {
     "provision": "ansible-playbook -i ansible/production ansible/provision.yml",
-    "deploy": "ansible-playbook -i ansible/production ansible/deploy.yml"
+    "deploy": "ansible-playbook -i ansible/production ansible/deploy.yml",
+    "start": "node arena-sheets.js --debug"
   },
   "dependencies": {
     "casperjs": "^1.1.0-beta3",
     "edit-google-spreadsheet": "^0.2.19",
     "googleapis": "^2.1.6",
+    "jquery": "^1.11.3",
     "lodash": "^3.10.1",
     "phantomjs": "^1.9.8",
     "request": "^2.65.0",

@@ -1,14 +1,18 @@
 var casper = require('casper').create({
-    clientScripts: ['jquery-1.11.3.min.js']
+    clientScripts: ['../node_modules/jquery/dist/jquery.js']
 });
 var util = require('utils');
 var fs = require('fs');
 var config = require('../config');
+var _ = require('../node_modules/lodash');
 
 dataOutPath = "./data/";
 if (casper.cli.args[0]) {
-    var dataOutPath = casper.cli.args[0];
+    dataOutPath = casper.cli.args[0];
 }
+
+setupDebug();
+setupDataDirectory();
 
 casper.start(config.arena_url + '/default.aspx?page=3062', function() {
     this.fill('form', {
@@ -18,15 +22,24 @@ casper.start(config.arena_url + '/default.aspx?page=3062', function() {
 });
 
 casper.thenClick('#ctl08_ctl01_btnSignin').waitForText("Welcome!", function(){
-	this.echo("Login successful.");
+	casper.echo("Login successful.");
 });
 
-casper.thenOpen(config.arena_url + '/default.aspx?page=3071').waitForText("Select Class Name to View Members", function(){
-    this.echo("Class list page loaded.");
+casper.thenOpen(config.arena_url + '/default.aspx?page=3071').waitForText("You are currently logged in",
+ function(){
+    casper.echo("Paged Class list page loaded.");
+    this.fillSelectors('form', {
+	'input.listItem': '200'
+    }, false);
+}, null, 30000);
 
+casper.thenClick('input#ctl08_ctl02_dgGroups_ctl33_btnRefreshdgGroups');
+
+casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(){
+    casper.echo("UN-Paged Class list page loaded.");
     var classes = this.evaluate(function(){
           var classList = [];
-          $('#ctl08_ctl02_dgGroups tr.listItem td:first a').each(function() {
+          $('#ctl08_ctl02_dgGroups tr.listItem, #ctl08_ctl02_dgGroups tr.listAltItem').find('td:first a').each(function() {
               var url = $(this).attr("href");
               var name = $(this).text();
               var id = url.match(/\S*group\=(\d+)/i)[1];
@@ -38,6 +51,7 @@ casper.thenOpen(config.arena_url + '/default.aspx?page=3071').waitForText("Selec
       casper.then(function(){
           writeMetaFile(classes);
           classes.forEach(function(c){
+              casper.echo("Queuing download of data for: " + c.name + " (" + c.id + ")");
               downloadRoster(c.id, c.name);
               downloadAttendance(c.id, c.name);
           });
@@ -45,14 +59,19 @@ casper.thenOpen(config.arena_url + '/default.aspx?page=3071').waitForText("Selec
 });
 
 function writeMetaFile(classes){
-    fs.write(dataOutPath + "classes.json", JSON.stringify(classes), 'w');
+    fs.write(dataOutPath + "classes.json", JSON.stringify(classes,null, 2), 'w');
 }
 
 function downloadRoster(classId, className) {
-    casper.thenOpen(config.arena_url + '/default.aspx?page=3077&group=' + classId).waitForText("CLICK HERE TO LOG OUT", function(){
-         this.echo(className + ": Members page loaded.");
+    var url = config.arena_url + '/default.aspx?page=3077&group=' + classId;
+    casper.thenOpen(url).waitForText("CLICK HERE TO LOG OUT", function(){
+         casper.echo(className + ": Members page loaded.");
          var form_info = this.evaluate(function(){
             var res={};
+            var exportId = $("input[id$='_ibExport']").first().attr('id');
+            res.exportId = exportId;
+
+
             f=document.forms[0];
             f.onsubmit= function() {
                 //iterate the form fields
@@ -61,8 +80,8 @@ function downloadRoster(classId, className) {
                    post[f.elements[i].name]=f.elements[i].value;
                 }
 
-                post["ctl08$ctl11$stGroupMain$ctl22$dgMembers$ctl28$dgMembers_ibExport.x"] = "8";
-                post["ctl08$ctl11$stGroupMain$ctl22$dgMembers$ctl28$dgMembers_ibExport.y"] = "7";
+                post[exportId.replace(/\_/g, '$').replace('$ibExport', '_ibExport') + ".x"] = "1";
+                post[exportId.replace(/\_/g, '$').replace('$ibExport', '_ibExport') + ".y"] = "1";
 
                 res.action = f.action;
                 res.post = post;
@@ -70,24 +89,27 @@ function downloadRoster(classId, className) {
             }
 
             //Trigger the click on the link.
-            var l = $("#ctl08_ctl11_stGroupMain_ctl22_dgMembers_ctl28_dgMembers_ibExport");
+            var l = $("#" + exportId);
             l.removeAttr("onclick");
             l.click();
 
             return res; //Return the form data to casper
          });
 
-         this.echo(className + ": Downloading roster data...");
+         casper.echo(className + ": Downloading roster data...");
          casper.download(form_info.action, dataOutPath + classId + "_roster.html", "POST", form_info.post);
-         this.echo(className + ": Roster data downloaded.");
+         casper.echo(className + ": Roster data downloaded.");
     });
 }
 
 function downloadAttendance(classId, className) {
+    var url = config.arena_url + '/default.aspx?page=3077&group=' + classId + '&tab=AggregateMembers';
     casper.thenOpen(config.arena_url + '/default.aspx?page=3077&group=' + classId + '&tab=AggregateMembers').waitForText("CLICK HERE TO LOG OUT", function(){
-         this.echo(className + ": Attendance page loaded.");
+         casper.echo(className + ": Attendance page loaded.");
          var form_info = this.evaluate(function(){
             var res={};
+            var exportId = $("input[id$='_ibExport']").first().attr('id');
+
             f=document.forms[0];
             f.onsubmit= function() {
                 //iterate the form fields
@@ -96,8 +118,8 @@ function downloadAttendance(classId, className) {
                    post[f.elements[i].name]=f.elements[i].value;
                 }
 
-                post["ctl08$ctl11$stGroupMain$ctl22$dgPersons$ctl28$dgPersons_ibExport.x"] = "4";
-                post["ctl08$ctl11$stGroupMain$ctl22$dgPersons$ctl28$dgPersons_ibExport.y"] = "10";
+                post[exportId.replace(/\_/g, '$').replace('$ibExport', '_ibExport') + ".x"] = "1";
+                post[exportId.replace(/\_/g, '$').replace('$ibExport', '_ibExport') + ".y"] = "1";
 
                 res.action = f.action;
                 res.post = post;
@@ -105,17 +127,55 @@ function downloadAttendance(classId, className) {
             }
 
             //Trigger the click on the link.
-            var l = $("#ctl08_ctl11_stGroupMain_ctl22_dgPersons_ctl28_dgPersons_ibExport");
+            var l = $("#" + exportId);
             l.removeAttr("onclick");
             l.click();
 
             return res; //Return the form data to casper
          });
 
-         this.echo(className + ": Downloading attendance data...");
+         casper.echo(className + ": Downloading attendance data...");
          casper.download(form_info.action, dataOutPath + classId + "_attendance.html", "POST", form_info.post);
-         this.echo(className + ": Attendance data downloaded.");
+         casper.echo(className + ": Attendance data downloaded.");
     });
 }
 
 casper.run();
+
+function setupDataDirectory(){
+    fs.removeTree(dataOutPath);
+}
+
+function setupDebug(){
+    var debugDirectory = 'debug/';
+    fs.removeTree(debugDirectory);
+
+    casper.on('load.finished', function(resource) {
+    	var fileNamePrefix = new Date().getTime();
+
+    	this.echo('saving: ' + debugDirectory + fileNamePrefix + '-screenshot.png');
+    	this.capture(debugDirectory + fileNamePrefix + '-screenshot.png', {
+    		top: 0,
+    		left: 0,
+    		width: 1024,
+    		height: 768
+    	});
+
+        var href = this.evaluate(function() {
+    		return document.location.href;
+    	});
+
+    	var innerHTML = this.evaluate(function(){
+    		return document.body.innerHTML;
+    	});
+
+    	innerHTML = '<!-- ' + href + ' -->\n\n' + innerHTML;
+
+    	casper.echo('saving: ' + debugDirectory + fileNamePrefix + '-content.html');
+    	fs.write(debugDirectory + fileNamePrefix + '-content.html', innerHTML, 'w');
+    });
+
+    casper.on('open', function(location, settings) {
+        casper.echo('[OPEN]: ' + location + ' ' + JSON.stringify(settings));
+    });
+}
