@@ -9,7 +9,7 @@
   "scripts": {
     "provision": "ansible-playbook -i ansible/production ansible/provision.yml",
     "deploy": "ansible-playbook -i ansible/production ansible/deploy.yml",
-    "start": "node arena-sheets.js --debug"
+    "start": "node arena-sheets.js --no-scrape"
   },
   "dependencies": {
     "casperjs": "^1.1.0-beta3",
