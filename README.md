@@ -16,6 +16,8 @@ The following files need to be created before use.  There are [file].example fil
 ## TODO
 
 - Logging
-- Change the way raw scrape files are organized
+- Exception handling
 - Implement Google Sheets *prepend* functionality to prevent overwriting
 - Format out data that gets written to Google Sheets
+- Email list of failures
+- Allow running --no-scrape with one class to fix single failure

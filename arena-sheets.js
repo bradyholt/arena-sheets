@@ -8,6 +8,7 @@ let OAuth2Client = google.auth.OAuth2;
 let scraperWraper = require('./lib/scraper-wrapper');
 let spreadsheetsManager = require('./lib/spreadsheets');
 let spreadsheetsHelper = require('./lib/spreadsheets-helper');
+let dateHelper = require('./lib/date-helper');
 var tabletojson = require('tabletojson');
 let argv = require('minimist')(process.argv.slice(2));
 
@@ -130,8 +131,8 @@ function readData(classId) {
 
         result.attendance.dates = dates;
 
-        //remove header
-        attendanceData.splice(0, 1);
+        //remove header row
+        attendanceData.shift();
 
         result.attendance.records = _.map(attendanceData, function(d) {
             var attendanceRecord = {
@@ -158,7 +159,13 @@ function readData(classId) {
 
     if (rosterData && rosterData.length) {
         let fieldMappings = _.invert(rosterData[0]);
+
+        //remove header row
         rosterData.shift();
+
+        var todaysDate = new Date();
+        var todaysDateAtMidnight = new Date(todaysDate.getFullYear(), todaysDate.getMonth(), todaysDate.getDate())
+        var lastSundayDate = dateHelper.getLastSunday(todaysDateAtMidnight);
 
         result.roster = _.map(rosterData, function(d) {
             var rosterRecord = {
@@ -166,7 +173,7 @@ function readData(classId) {
                 lastName: d[fieldMappings["last_name"]],
                 firstName: d[fieldMappings["first_name"]],
                 gender: (d[fieldMappings["gender"]] || "") == "0" ? "M" : "F",
-                dob: (d[fieldMappings["person_birthdate"]] && d[fieldMappings["person_birthdate"]].length > 8) ? d[fieldMappings["person_birthdate"]].substring(0,d[fieldMappings["person_birthdate"]].indexOf(' ')) : "",
+                dob: dateHelper.stripTimeFromDateString(d[fieldMappings["person_birthdate"]]),
                 email: d[fieldMappings["person_email"]],
                 cellPhone: d[fieldMappings["mobile_phone"]],
                 homePhone: d[fieldMappings["home_phone"]],
@@ -174,12 +181,25 @@ function readData(classId) {
                 cityStateZip: (d[fieldMappings["city"]] || "") + ", " + (d[fieldMappings["state"]] || "") + " " + (d[fieldMappings["postal_code"]] || ""),
                 dateAdded: d[fieldMappings["date_added"]],
                 role: d[fieldMappings["member_role"]],
-                status: d[fieldMappings["date_inactive"]].length > 0 ? "Inactive" : d[fieldMappings["record_status"]],
-                attendance: null
+                isActive: d[fieldMappings["date_inactive"]].length > 0 ? false : ((d[fieldMappings["record_status"]] == "Active") ? true : false),
+                isMember: (d[fieldMappings["member_role"]].indexOf('Visit') == -1 && !_.contains(['YVNA', 'YMNA'], d[fieldMappings["member_role"]])),
+                firstPresent: null,
+                firstPresentWeeksAgo: null,
+                lastPresent: null,
+                lastPresentWeeksAgo: null
             };
 
             if (attendanceMappedByFullName[rosterRecord.fullName]){
-                rosterRecord.attendance = attendanceMappedByFullName[rosterRecord.fullName];
+                var attendance = attendanceMappedByFullName[rosterRecord.fullName];
+                if (attendance.firstPresent) {
+                    rosterRecord.firstPresent = attendance.firstPresent;
+                    rosterRecord.firstPresentWeeksAgo = dateHelper.getFullWeeksBetweenDates(new Date(attendance.firstPresent), lastSundayDate);
+                }
+
+                if (attendance.lastPresent) {
+                    rosterRecord.lastPresent = attendance.lastPresent;
+                    rosterRecord.lastPresentWeeksAgo = dateHelper.getFullWeeksBetweenDates(new Date(attendance.lastPresent), lastSundayDate);
+                }
             }
 
             return rosterRecord;
@@ -194,13 +214,9 @@ function getContactQueueData(){
     return queue;
 }
 
-function memberFilter(role){
-    return (role.indexOf('Visit') == -1 && !_.contains(['YVNA', 'YMNA'], role));
-}
-
 function getRosterData(sourceData, filter) {
     var filtered = _.filter(sourceData, function(d) {
-        return d.status == "Active" && memberFilter(d.role);
+        return d.isActive && d.isMember;
     });
 
     var sorted = _.sortBy(filtered, function(d) {
@@ -209,16 +225,16 @@ function getRosterData(sourceData, filter) {
 
     var formatted = _.map(sorted, function(d){
         return [
-            d.lastName,
-            d.firstName,
-            d.gender,
-            d.dob,
-            d.email,
-            d.cellPhone,
-            d.homePhone,
-            d.address,
-            d.cityStateZip,
-            d.role
+            d.lastName || "",
+            d.firstName || "",
+            d.gender || "",
+            d.dob || "",
+            d.email || "",
+            d.cellPhone || "",
+            d.homePhone || "",
+            d.address || "",
+            d.cityStateZip || "",
+            d.role || ""
         ];
     });
 
@@ -231,35 +247,31 @@ function getRosterData(sourceData, filter) {
 
 function getVisitorData(sourceData, filter) {
     var filtered = _.filter(sourceData, function(d) {
-        return d.status == "Active" && !memberFilter(d.role);
+        return d.isActive && !d.isMember;
     });
 
     var sorted = _.sortByOrder(filtered, function(d) {
         var date = new Date(0);
-        if (d.attendance){
-            date = new Date(d.attendance.firstPresent)
+        if (d.firstPresent){
+            date = new Date(d.firstPresent)
         }
         return date;
     }, ['desc']);
 
     var formatted = _.map(sorted, function(d){
         var mapped = [
-            "",
-            d.lastName,
-            d.firstName,
-            d.gender,
-            d.dob,
-            d.email,
-            d.cellPhone,
-            d.homePhone,
-            d.address,
-            d.cityStateZip,
-            d.role
+            d.firstPresent || "",
+            d.lastName || "",
+            d.firstName || "",
+            d.gender || "",
+            d.dob || "",
+            d.email || "",
+            d.cellPhone || "",
+            d.homePhone || "",
+            d.address || "",
+            d.cityStateZip || "",
+            d.role || ""
         ];
-
-        if (d.attendance){
-            mapped[0] = d.attendance.firstPresent;
-        }
 
         return mapped;
     });
@@ -291,10 +303,10 @@ function getAttendanceData(sourceData) {
 
 function getEmailLists(sourceData){
     var padColumnsCount = 9;
-    var activeWithEmail = _.filter(sourceData, function(d){ return d.status == "Active" && d.email });
+    var activeWithEmail = _.filter(sourceData, function(d){ return d.isActive && d.email });
 
-    var memberEmails = generateEmailList(activeWithEmail, function(d){ return memberFilter(d.role); });
-    var visitorEmails = generateEmailList(activeWithEmail, function(d){ return !memberFilter(d.role); });
+    var memberEmails = generateEmailList(activeWithEmail, function(d){ return d.isMember; });
+    var visitorEmails = generateEmailList(activeWithEmail, function(d){ return !d.isMember; });
     var menEmails = generateEmailList(activeWithEmail, function(d){ return d.gender == "M"; });
     var womenEmails = generateEmailList(activeWithEmail, function(d){ return d.gender == "F" });
 

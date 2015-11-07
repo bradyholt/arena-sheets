@@ -9,7 +9,7 @@
   "scripts": {
     "provision": "ansible-playbook -i ansible/production ansible/provision.yml",
     "deploy": "ansible-playbook -i ansible/production ansible/deploy.yml",
-    "start": "node arena-sheets.js --no-scrape"
+    "start": "node arena-sheets.js --no-scrape --classId=2177"
   },
   "dependencies": {
     "casperjs": "^1.1.0-beta3",
@@ -17,6 +17,7 @@
     "googleapis": "^2.1.6",
     "jquery": "^1.11.3",
     "lodash": "^3.10.1",
+    "minimist": "^1.2.0",
     "phantomjs": "^1.9.8",
     "request": "^2.65.0",
     "tabletojson": "^0.2.1",
