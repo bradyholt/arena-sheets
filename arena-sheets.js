@@ -75,7 +75,7 @@ function updateSheets(oauth2Client) {
             }
 
             //go ahead and prep data before we talk to the Google API
-            var contactQueue = getContactQueueData();
+            var contactQueue = getContactQueueData(classData.roster);
             var members = getRosterData(classData.roster);
             var visitors = getVisitorData(classData.roster);
             var attendance = getAttendanceData(classData.attendance);
@@ -209,9 +209,68 @@ function readData(classId) {
     return result;
 }
 
-function getContactQueueData(){
-    var queue = [['123', '456'],['xxx', 'yyy']];
-    return queue;
+function getContactQueueData(sourceData){
+    var active = _.filter(sourceData, function(d) {
+        return d.isActive;
+    });
+
+    var todaysDate = new Date();
+    var todaysDateAtMidnight = new Date(todaysDate.getFullYear(), todaysDate.getMonth(), todaysDate.getDate())
+    var lastSundayDate = dateHelper.getLastSunday(todaysDateAtMidnight);
+    var lastSundayDateFormatted = (lastSundayDate.getMonth() + 1) + "/" + (lastSundayDate.getDate() + 1) + "/" + lastSundayDate.getFullYear();
+
+    var firstTimeVisitors = _.chain(active)
+        .where({ 'isMember': false, 'firstPresentWeeksAgo': 0 })
+        .map(function(visitor) {
+            return [
+                lastSundayDateFormatted,
+                visitor.fullName,
+                visitor.lastPresent,
+                "First Time Visitor"
+            ];
+        })
+        .value();
+
+    var secondTimeVisitors = _.chain(active)
+        .where({ 'isMember': false, 'firstPresentWeeksAgo': 1, 'lastPresentWeeksAgo': 0 })
+        .map(function(visitor) {
+            return [
+                lastSundayDateFormatted,
+                visitor.fullName,
+                visitor.lastPresent,
+                "Second Time Visitor"
+            ];
+        })
+        .value();
+
+    var memberAbsentTwoWeeks = _.chain(active)
+        .where({ 'isMember': true, 'lastPresentWeeksAgo': 2 })
+        .map(function(visitor) {
+            return [
+                lastSundayDateFormatted,
+                visitor.fullName,
+                visitor.lastPresent,
+                "Member Absent 2 Weeks"
+            ];
+        })
+        .value();
+
+    var memberAbsentOneMonth = _.chain(active)
+        .where({ 'isMember': true, 'lastPresentWeeksAgo': 4 })
+        .map(function(visitor) {
+            return [
+                lastSundayDateFormatted,
+                visitor.fullName,
+                visitor.lastPresent,
+                "Member Absent 1 Month"
+            ];
+        })
+        .value();
+
+    return firstTimeVisitors
+        .concat(secondTimeVisitors)
+        .concat(memberAbsentTwoWeeks)
+        .concat(memberAbsentOneMonth);
 }
 
 function getRosterData(sourceData, filter) {
@@ -234,12 +293,13 @@ function getRosterData(sourceData, filter) {
             d.homePhone || "",
             d.address || "",
             d.cityStateZip || "",
-            d.role || ""
+            d.role || "",
+            d.lastPresent || ""
         ];
     });
 
     //add header
-    var header = ['Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role'];
+    var header = ['Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role', 'Last Present'];
     formatted.unshift(header);
 
     return formatted;
@@ -261,6 +321,7 @@ function getVisitorData(sourceData, filter) {
     var formatted = _.map(sorted, function(d){
         var mapped = [
             d.firstPresent || "",
+            d.lastPresent || "",
             d.lastName || "",
             d.firstName || "",
             d.gender || "",
@@ -277,7 +338,7 @@ function getVisitorData(sourceData, filter) {
     });
 
     //add header
-    var header = ['First Visit', 'Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role'];
+    var header = ['First Visit', 'Last Visit', 'Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role'];
     formatted.unshift(header);
 
     return formatted;
