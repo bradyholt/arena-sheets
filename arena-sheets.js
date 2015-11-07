@@ -7,9 +7,9 @@ let google = require('googleapis');
 let OAuth2Client = google.auth.OAuth2;
 let scraperWraper = require('./lib/scraper-wrapper');
 let spreadsheetsManager = require('./lib/spreadsheets');
-let spreadsheetEditor = require('edit-google-spreadsheet');
+let spreadsheetsHelper = require('./lib/spreadsheets-helper');
 var tabletojson = require('tabletojson');
-
+let argv = require('minimist')(process.argv.slice(2));
 
 function startScrape() {
     scraperWraper.startScrape({
@@ -46,14 +46,25 @@ function updateSheets(oauth2Client) {
     var classes = require('./data/classes.json');
 
     var worksheets = [
+        { name: 'Contact Queue', rows: 100, col: 15 },
         { name: 'Roster', rows: 100, col: 15 },
         { name: 'Visitors', rows: 100, col: 15 },
         { name: 'Attendance', rows: 100, col: 15 },
         { name: 'Email Lists', rows: 100, col: 15 }
     ];
 
+    var oauth2 = {
+        client_id: config.client_id,
+        client_secret: config.client_secret,
+        refresh_token: config.refresh_token
+    };
+
     classes.forEach(function(currentClass){
         let _this = this;
+
+        if (!!argv.classId && currentClass.id != argv.classId) {
+            return;
+        }
 
         try {
             let classData = readData(currentClass.id);
@@ -63,14 +74,9 @@ function updateSheets(oauth2Client) {
             }
 
             //go ahead and prep data before we talk to the Google API
-            var members = getRosterData(classData.roster, function(d) {
-                return d.status == "Active" && memberFilter(d.role);
-            });
-
-            var visitors = getRosterData(classData.roster, function(d) {
-                return d.status == "Active" && !memberFilter(d.role);
-            });
-
+            var contactQueue = getContactQueueData();
+            var members = getRosterData(classData.roster);
+            var visitors = getVisitorData(classData.roster);
             var attendance = getAttendanceData(classData.attendance);
             var emailLists = getEmailLists(classData.roster);
 
@@ -79,10 +85,11 @@ function updateSheets(oauth2Client) {
                 templateId: config.template_spreadsheet_id,
                 worksheets: worksheets
             }).then(function(sheetData) {
-                    writeData(currentClass.id, sheetData, 'Roster', members);
-                    writeData(currentClass.id, sheetData, 'Visitors', visitors);
-                    writeData(currentClass.id, sheetData, 'Attendance', attendance);
-                    writeData(currentClass.id, sheetData, 'Email Lists', emailLists);
+                    spreadsheetsHelper.prependWorksheet(currentClass.id, sheetData, 'Contact Queue', oauth2, contactQueue, true);
+                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Roster', oauth2, members);
+                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
+                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
+                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
 
                 }).catch(function(err) {
                     console.log(err);
@@ -94,19 +101,68 @@ function updateSheets(oauth2Client) {
 }
 
 function readData(classId) {
-    let rosterHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_roster.html', 'utf8');
-    let rosterData = tabletojson.convert(rosterHtml)[0];
     let result = {
         roster: null,
         attendance: null
     };
+
+    let attendanceHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_attendance.html', 'utf8');
+    let attendanceData = tabletojson.convert(attendanceHtml)[0];
+    let attendanceMappedByFullName = {};
+
+    if (attendanceData && attendanceData.length){
+        result.attendance = {
+            dates: [],
+            records: []
+        };
+
+        var datesStartColumnIndex = 8;
+        var datesEndColumnIndex = _.keys(attendanceData[0]).length - 2;
+        var datesAvailableCount = (datesEndColumnIndex - datesStartColumnIndex);
+        var dates = [];
+
+        for (var i = datesEndColumnIndex; i >= datesStartColumnIndex; i--) {
+            var dirtyDate = attendanceData[0][i.toString()];
+            if (dirtyDate && dirtyDate.length) {
+                dates.push(dirtyDate.substring(0, dirtyDate.length - 2));
+            }
+        }
+
+        result.attendance.dates = dates;
+
+        //remove header
+        attendanceData.splice(0, 1);
+
+        result.attendance.records = _.map(attendanceData, function(d) {
+            var attendanceRecord = {
+                fullName: d["0"],
+                lastName: d["0"].substring(0, d["0"].indexOf(",")),
+                firstName: d["0"].substring(d["0"].indexOf(",") + 1),
+                firstPresent: d["5"],
+                lastPresent: d["6"]
+            };
+
+            var dateIndex = 1;
+            for (var i = datesEndColumnIndex; i >= datesStartColumnIndex; i--) {
+                attendanceRecord[dateIndex.toString()] = d[i.toString()];
+                dateIndex++;
+            }
+
+            attendanceMappedByFullName[attendanceRecord.fullName] = attendanceRecord;
+            return attendanceRecord;
+        });
+    }
+
+    let rosterHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_roster.html', 'utf8');
+    let rosterData = tabletojson.convert(rosterHtml)[0];
 
     if (rosterData && rosterData.length) {
         let fieldMappings = _.invert(rosterData[0]);
         rosterData.shift();
 
         result.roster = _.map(rosterData, function(d) {
-            return {
+            var rosterRecord = {
+                fullName: d[fieldMappings["last_name"]] + ", " + d[fieldMappings["first_name"]],
                 lastName: d[fieldMappings["last_name"]],
                 firstName: d[fieldMappings["first_name"]],
                 gender: (d[fieldMappings["gender"]] || "") == "0" ? "M" : "F",
@@ -116,69 +172,26 @@ function readData(classId) {
                 homePhone: d[fieldMappings["home_phone"]],
                 address: d[fieldMappings["address"]],
                 cityStateZip: (d[fieldMappings["city"]] || "") + ", " + (d[fieldMappings["state"]] || "") + " " + (d[fieldMappings["postal_code"]] || ""),
+                dateAdded: d[fieldMappings["date_added"]],
                 role: d[fieldMappings["member_role"]],
-                status: d[fieldMappings["date_inactive"]].length > 0 ? "Inactive" : d[fieldMappings["record_status"]    ]
+                status: d[fieldMappings["date_inactive"]].length > 0 ? "Inactive" : d[fieldMappings["record_status"]],
+                attendance: null
             };
+
+            if (attendanceMappedByFullName[rosterRecord.fullName]){
+                rosterRecord.attendance = attendanceMappedByFullName[rosterRecord.fullName];
+            }
+
+            return rosterRecord;
         });
     }
-
-    let attendanceHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_attendance.html', 'utf8');
-    result.attendance = tabletojson.convert(attendanceHtml)[0];
 
     return result;
 }
 
-function writeData(classId, sheetData, worksheetName, data) {
-
-    var spreadsheetId = sheetData.spreadsheetId;
-    var worksheetId = sheetData.worksheets[worksheetName];
-
-    if (!data.length || data.length == 1) {
-        return;
-    }
-
-    var padRows = 10;
-    var padColumns = 2;
-
-    //pad extra empty rows and columns
-    for(var i = 1; i <= padRows; i++){
-        var padRow = _.fill(new Array(data[0].length), '');
-        data.push(padRow);
-    }
-
-    data.forEach(function(d, idx){
-        data[idx] = d.concat(_.fill(new Array(padColumns), ''));
-    });
-
-    spreadsheetEditor.load({
-        debug: true,
-        spreadsheetId: spreadsheetId,
-        worksheetId: worksheetId,
-
-        oauth2: {
-            client_id: config.client_id,
-            client_secret: config.client_secret,
-            refresh_token: config.refresh_token
-        }
-    }, function sheetReady(err, spreadsheet) {
-
-        spreadsheet.metadata({
-          title: worksheetName,
-          rowCount: data.length,
-          colCount: data[0].length
-        }, function(err, metadata){
-            if (err) {
-                console.log('Error when setting metadata data for classId:' + classId + ' (' + err + ')');
-            } else {
-                spreadsheet.add(data);
-                spreadsheet.send(function(err) {
-                    if (err) {
-                        console.log('Error when writing data for classId:' + classId + ' (' + err + ')');
-                    }
-                });
-            }
-        });
-    });
+function getContactQueueData(){
+    var queue = [['123', '456'],['xxx', 'yyy']];
+    return queue;
 }
 
 function memberFilter(role){
@@ -186,7 +199,9 @@ function memberFilter(role){
 }
 
 function getRosterData(sourceData, filter) {
-    var filtered = _.filter(sourceData, filter);
+    var filtered = _.filter(sourceData, function(d) {
+        return d.status == "Active" && memberFilter(d.role);
+    });
 
     var sorted = _.sortBy(filtered, function(d) {
         return d.lastName;
@@ -214,44 +229,74 @@ function getRosterData(sourceData, filter) {
     return formatted;
 }
 
-function getAttendanceData(sourceData) {
-    var attendance = sourceData;
-
-    //add header with attendance dates
-    // i.e.:  Name,	10/25/2015,	10/18/2015
-    var datesStartColumnIndex = 8;
-    var datesEndColumnIndex = _.keys(attendance[0]).length - 1;
-    var datesAvailableCount = (datesEndColumnIndex - datesStartColumnIndex);
-
-    for (var i = datesStartColumnIndex; i <= datesEndColumnIndex; i++) {
-        var dirtyDate = attendance[0][i.toString()];
-        if (dirtyDate && dirtyDate.length) {
-            attendance[0][i.toString()] = dirtyDate.substring(0, dirtyDate.length - 2);
-        }
-    }
-
-    //ad
-    var attenanceFormatted = _.map(attendance, function(d) {
-        var attendanceRecord = [d["0"]];
-
-        for(var i = datesEndColumnIndex - 1; i >= datesStartColumnIndex; i--){
-            attendanceRecord.push(d[i]);
-        }
-
-        return attendanceRecord;
+function getVisitorData(sourceData, filter) {
+    var filtered = _.filter(sourceData, function(d) {
+        return d.status == "Active" && !memberFilter(d.role);
     });
 
-    return attenanceFormatted;
+    var sorted = _.sortByOrder(filtered, function(d) {
+        var date = new Date(0);
+        if (d.attendance){
+            date = new Date(d.attendance.firstPresent)
+        }
+        return date;
+    }, ['desc']);
+
+    var formatted = _.map(sorted, function(d){
+        var mapped = [
+            "",
+            d.lastName,
+            d.firstName,
+            d.gender,
+            d.dob,
+            d.email,
+            d.cellPhone,
+            d.homePhone,
+            d.address,
+            d.cityStateZip,
+            d.role
+        ];
+
+        if (d.attendance){
+            mapped[0] = d.attendance.firstPresent;
+        }
+
+        return mapped;
+    });
+
+    //add header
+    var header = ['First Visit', 'Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role'];
+    formatted.unshift(header);
+
+    return formatted;
+}
+
+function getAttendanceData(sourceData) {
+
+    var formatted = _.map(sourceData.records, function(d) {
+        var formattedRecord = [d.lastName, d.firstName, d.lastPresent];
+
+        for(var i = 1; i <= sourceData.dates.length; i++){
+            formattedRecord.push(d[i.toString()]);
+        }
+
+        return formattedRecord;
+    });
+
+    var header = ['Last Name', 'First Name', 'Last Present'].concat(sourceData.dates);
+    formatted.unshift(header);
+
+    return formatted;
 }
 
 function getEmailLists(sourceData){
     var padColumnsCount = 9;
-    var active = _.filter(sourceData, function(d){ return d.status == "Active" });
+    var activeWithEmail = _.filter(sourceData, function(d){ return d.status == "Active" && d.email });
 
-    var memberEmails = generateEmailList(active, function(d){ return memberFilter(d.role); });
-    var visitorEmails = generateEmailList(active, function(d){ return !memberFilter(d.role); });
-    var menEmails = generateEmailList(active, function(d){ return d.gender == "M"; });
-    var womenEmails = generateEmailList(active, function(d){ return d.gender == "F" });
+    var memberEmails = generateEmailList(activeWithEmail, function(d){ return memberFilter(d.role); });
+    var visitorEmails = generateEmailList(activeWithEmail, function(d){ return !memberFilter(d.role); });
+    var menEmails = generateEmailList(activeWithEmail, function(d){ return d.gender == "M"; });
+    var womenEmails = generateEmailList(activeWithEmail, function(d){ return d.gender == "F" });
 
     var padColumns = _.fill(new Array(padColumnsCount), '');
     return [
@@ -269,7 +314,7 @@ function generateEmailList(source, filter){
 
 }
 
-if (_.contains(process.argv, '--no-scrape')){
+if (!argv.scrape){
     startUpdateSheets();
 } else {
     startScrape();
