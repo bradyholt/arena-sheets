@@ -41,12 +41,18 @@ casper.thenClick('input#ctl08_ctl02_dgGroups_ctl33_btnRefreshdgGroups');
 
 casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(){
     casper.echo("UN-Paged Class list page loaded.");
-    var classes = this.evaluate(function(){
+    var classes = this.evaluate(function(class_settings){
           var classList = [];
           $('#ctl08_ctl02_dgGroups tr.listItem, #ctl08_ctl02_dgGroups tr.listAltItem').each(function() {
               var link = $(this).find('td:first a');
               var url = link.attr("href");
               var id = url.match(/\S*group\=(\d+)/i)[1];
+
+              var skipClass = (class_settings && class_settings[id] && class_settings[id].skip == true);
+              if (skipClass) {
+                  return;
+              }
+
               var name = link.text();
 
               //append room number to name
@@ -61,7 +67,7 @@ casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(
               classList.push({ id: id, name: name});
           });
           return classList;
-      });
+      }, config.class_settings);
 
       casper.then(function(){
           writeMetaFile(classes);
