@@ -43,10 +43,21 @@ casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(
     casper.echo("UN-Paged Class list page loaded.");
     var classes = this.evaluate(function(){
           var classList = [];
-          $('#ctl08_ctl02_dgGroups tr.listItem, #ctl08_ctl02_dgGroups tr.listAltItem').find('td:first a').each(function() {
-              var url = $(this).attr("href");
-              var name = $(this).text();
+          $('#ctl08_ctl02_dgGroups tr.listItem, #ctl08_ctl02_dgGroups tr.listAltItem').each(function() {
+              var link = $(this).find('td:first a');
+              var url = link.attr("href");
               var id = url.match(/\S*group\=(\d+)/i)[1];
+              var name = link.text();
+
+              //append room number to name
+              var room = $(this).find('td:last');
+              if (room.length){
+                  var roomText = room.text();
+                  if (roomText && roomText.length > 1) {
+                      name = name + " (" + roomText + ")";
+                  }
+              }
+
               classList.push({ id: id, name: name});
           });
           return classList;

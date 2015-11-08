@@ -29,3 +29,4 @@ The following files need to be created before use.  There are [file].example fil
 - Exception handling
 - Format out data that gets written to Google Sheets
 - Email list of failures
+- Fix dates (last Sunday, today, what "Date Added" gets added on Contact Queue)
