@@ -39,7 +39,6 @@ function scapeData() {
 
 function updateSheets(){
     return googleAuthenticate().then(function(oauth2Client){
-
         updateSheetsWithAuthentication(oauth2Client);
     })
 }
@@ -94,10 +93,10 @@ function updateSheetsWithAuthentication(oauth2Client) {
                 worksheets: WORKSHEETS
             }).then(function(sheetData) {
                     sheetsEditor.prependWorksheet(currentClass.id, sheetData, 'Contact Queue', oauth2, contactQueue, true, lastSundayDateFormatted, 100);
-                    //sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Members', oauth2, members);
-                    //sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
-                    //sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
-                    //sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
+                    sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Members', oauth2, members);
+                    sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
+                    sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
+                    sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
 
                 }).catch(function(err) {
                     console.log(err);
@@ -148,6 +147,6 @@ if (argv.help == true || _.contains(argv._, 'help')){
     scapeData().then(function(){
         updateSheets();
     }).catch(function(code){
-        throw new Error('Scrape process exited with error code: ' + code);
+        console.log('Scrape process exited with error code: ' + code);
     });
 }
