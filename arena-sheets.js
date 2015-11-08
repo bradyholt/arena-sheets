@@ -60,6 +60,11 @@ function updateSheets(oauth2Client) {
         refresh_token: config.refresh_token
     };
 
+    var todaysDate = new Date();
+    var todaysDateAtMidnight = new Date(todaysDate.getFullYear(), todaysDate.getMonth(), todaysDate.getDate())
+    var lastSundayDate = dateHelper.getLastSunday(todaysDateAtMidnight);
+    var lastSundayDateFormatted = (lastSundayDate.getMonth() + 1) + "/" + (lastSundayDate.getDate()) + "/" + lastSundayDate.getFullYear();
+
     classes.forEach(function(currentClass){
         let _this = this;
 
@@ -68,29 +73,35 @@ function updateSheets(oauth2Client) {
         }
 
         try {
-            let classData = readData(currentClass.id);
+            let classData = readData(currentClass.id, lastSundayDate);
 
-            if (!classData.roster || !classData.attendance) {
+            if (!classData.roster || !classData.attendance // roster or attendance data not available
+                || !_.contains(classData.attendance.dates, lastSundayDateFormatted) // data for last Sunday not available
+            ) {
                 return;
             }
 
+            var active = _.filter(classData.roster, function(d) {
+                return d.isActive;
+            });
+
             //go ahead and prep data before we talk to the Google API
-            var contactQueue = getContactQueueData(classData.roster);
-            var members = getRosterData(classData.roster);
-            var visitors = getVisitorData(classData.roster);
+            var contactQueue = getContactQueueData(active, lastSundayDateFormatted);
+            var members = getRosterData(active);
+            var visitors = getVisitorData(active);
             var attendance = getAttendanceData(classData.attendance);
-            var emailLists = getEmailLists(classData.roster);
+            var emailLists = getEmailLists(active);
 
             spreadsheets.prepSheet( {
                 name: currentClass.name,
                 templateId: config.template_spreadsheet_id,
                 worksheets: worksheets
             }).then(function(sheetData) {
-                    spreadsheetsHelper.prependWorksheet(currentClass.id, sheetData, 'Contact Queue', oauth2, contactQueue, true);
-                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Roster', oauth2, members);
-                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
-                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
-                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
+                    spreadsheetsHelper.prependWorksheet(currentClass.id, sheetData, 'Contact Queue', oauth2, contactQueue, true, lastSundayDateFormatted, 100);
+                    //spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Roster', oauth2, members);
+                    //spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
+                    //spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
+                    //spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
 
                 }).catch(function(err) {
                     console.log(err);
@@ -101,7 +112,7 @@ function updateSheets(oauth2Client) {
     });
 }
 
-function readData(classId) {
+function readData(classId, lastSundayDate) {
     let result = {
         roster: null,
         attendance: null
@@ -163,10 +174,6 @@ function readData(classId) {
         //remove header row
         rosterData.shift();
 
-        var todaysDate = new Date();
-        var todaysDateAtMidnight = new Date(todaysDate.getFullYear(), todaysDate.getMonth(), todaysDate.getDate())
-        var lastSundayDate = dateHelper.getLastSunday(todaysDateAtMidnight);
-
         result.roster = _.map(rosterData, function(d) {
             var rosterRecord = {
                 fullName: d[fieldMappings["last_name"]] + ", " + d[fieldMappings["first_name"]],
@@ -209,76 +216,74 @@ function readData(classId) {
     return result;
 }
 
-function getContactQueueData(sourceData){
-    var active = _.filter(sourceData, function(d) {
-        return d.isActive;
+function getContactQueueData(active, lastSundayDateFormatted){
+    var firstTimeVisitors = getContactQueueList(active, "First Time Visitor", { 'isMember': false, 'firstPresentWeeksAgo': 0 });
+    var membersAbsentThreeWeeks = getContactQueueList(active, "Member Absent 3 Weeks", { 'isMember': true, 'lastPresentWeeksAgo': 3 });
+    var membersAbsentSixWeeks = getContactQueueList(active, "Member Absent 2 Months", { 'isMember': true, 'lastPresentWeeksAgo': 8 });
+
+    var unmergedContactQueue = firstTimeVisitors.concat(membersAbsentThreeWeeks, membersAbsentSixWeeks);
+
+    //merge contact queue to get one person from each family (unique by last name and address)
+    var mergedContactQueue = _.uniq(unmergedContactQueue, function(c){
+        return (c.lastName + c.address);
     });
 
-    var todaysDate = new Date();
-    var todaysDateAtMidnight = new Date(todaysDate.getFullYear(), todaysDate.getMonth(), todaysDate.getDate())
-    var lastSundayDate = dateHelper.getLastSunday(todaysDateAtMidnight);
-    var lastSundayDateFormatted = (lastSundayDate.getMonth() + 1) + "/" + (lastSundayDate.getDate() + 1) + "/" + lastSundayDate.getFullYear();
+    //now try to append spouse's name
+    mergedContactQueue.forEach(function(m){
+        var spouse = _.find(unmergedContactQueue, function(u){
+            return (u.lastName == m.lastName
+                    && u.address == m.address
+                    && u.gender != m.gender);
+        });
 
-    var firstTimeVisitors = _.chain(active)
-        .where({ 'isMember': false, 'firstPresentWeeksAgo': 0 })
-        .map(function(visitor) {
-            return [
-                lastSundayDateFormatted,
-                visitor.fullName,
-                visitor.lastPresent,
-                "First Time Visitor"
-            ];
-        })
-        .value();
+        if (spouse){
+            //we found a spouse so append spouse's name
+            m.firstName = m.firstName + " and " + spouse.firstName;
+        }
+    });
 
-    var secondTimeVisitors = _.chain(active)
-        .where({ 'isMember': false, 'firstPresentWeeksAgo': 1, 'lastPresentWeeksAgo': 0 })
-        .map(function(visitor) {
-            return [
-                lastSundayDateFormatted,
-                visitor.fullName,
-                visitor.lastPresent,
-                "Second Time Visitor"
-            ];
-        })
-        .value();
+    var formattedContactQueue = _.map(mergedContactQueue, function(m){
+        return [
+            lastSundayDateFormatted,
+            m.lastName,
+            m.firstName,
+            m.lastPresent,
+            m.reason
+        ];
+    });
 
-    var memberAbsentTwoWeeks = _.chain(active)
-        .where({ 'isMember': true, 'lastPresentWeeksAgo': 2 })
-        .map(function(visitor) {
-            return [
-                lastSundayDateFormatted,
-                visitor.fullName,
-                visitor.lastPresent,
-                "Member Absent 2 Weeks"
-            ];
-        })
-        .value();
+    //add header
+    var header = ['Date Added', 'Last Name', 'First Name(s)', 'Last Sunday Attendance', 'Reason', 'Contacted By', 'Contact Notes'];
+    formattedContactQueue.unshift(header);
 
-    var memberAbsentOneMonth = _.chain(active)
-        .where({ 'isMember': true, 'lastPresentWeeksAgo': 4 })
-        .map(function(visitor) {
-            return [
-                lastSundayDateFormatted,
-                visitor.fullName,
-                visitor.lastPresent,
-                "Member Absent 1 Month"
-            ];
-        })
-        .value();
+    //add space row
+    formattedContactQueue.push(['--------']);
 
-    return firstTimeVisitors
-        .concat(secondTimeVisitors)
-        .concat(memberAbsentTwoWeeks)
-        .concat(memberAbsentOneMonth);
+    return formattedContactQueue;
 }
 
-function getRosterData(sourceData, filter) {
-    var filtered = _.filter(sourceData, function(d) {
-        return d.isActive && d.isMember;
-    });
+function getContactQueueList(active, reason, filter){
+    var list = _.chain(active)
+        .where(filter)
+        .map(function(d) {
+            return {
+                lastName: d.lastName,
+                firstName: d.firstName,
+                address: d.address,
+                gender: d.gender,
+                lastPresent: d.lastPresent,
+                reason: reason
+            };
+        })
+        .value();
 
-    var sorted = _.sortBy(filtered, function(d) {
+    return list;
+}
+
+function getRosterData(active, filter) {
+    var members = _.filter(active, { 'isMember': true });
+
+    var sorted = _.sortBy(members, function(d) {
         return d.lastName;
     });
 
@@ -305,12 +310,10 @@ function getRosterData(sourceData, filter) {
     return formatted;
 }
 
-function getVisitorData(sourceData, filter) {
-    var filtered = _.filter(sourceData, function(d) {
-        return d.isActive && !d.isMember;
-    });
+function getVisitorData(active, filter) {
+    var visitors = _.filter(active, { 'isMember': false });
 
-    var sorted = _.sortByOrder(filtered, function(d) {
+    var sorted = _.sortByOrder(visitors, function(d) {
         var date = new Date(0);
         if (d.firstPresent){
             date = new Date(d.firstPresent)
@@ -362,9 +365,9 @@ function getAttendanceData(sourceData) {
     return formatted;
 }
 
-function getEmailLists(sourceData){
+function getEmailLists(active){
     var padColumnsCount = 9;
-    var activeWithEmail = _.filter(sourceData, function(d){ return d.isActive && d.email });
+    var activeWithEmail = _.filter(active, function(d){ return d.email });
 
     var memberEmails = generateEmailList(activeWithEmail, function(d){ return d.isMember; });
     var visitorEmails = generateEmailList(activeWithEmail, function(d){ return !d.isMember; });
