@@ -12,9 +12,12 @@ let dateHelper = require('./lib/date-helper');
 var tabletojson = require('tabletojson');
 let argv = require('minimist')(process.argv.slice(2));
 
+let dataPath = "data/";
+
 function startScrape() {
     scraperWraper.startScrape({
-        data_path: config.scrape_data_path,
+        data_path: dataPath,
+        class_id: argv.classId
     }, function(code){
         if (code != 0) {
             throw new Error('Scrape process exited with error code: ' + code);
@@ -44,7 +47,7 @@ function startUpdateSheets(){
 
 function updateSheets(oauth2Client) {
     var spreadsheets = new spreadsheetsManager(oauth2Client);
-    var classes = require('./data/classes.json');
+    var classes = require('./' + dataPath + 'classes.json');
 
     var worksheets = [
         { name: 'Contact Queue', rows: 100, col: 15 },
@@ -78,7 +81,7 @@ function updateSheets(oauth2Client) {
             if (!classData.roster || !classData.attendance // roster or attendance data not available
                 || !_.contains(classData.attendance.dates, lastSundayDateFormatted) // data for last Sunday not available
             ) {
-                return;
+                //return;
             }
 
             var active = _.filter(classData.roster, function(d) {
@@ -117,8 +120,6 @@ function readData(classId, lastSundayDate) {
         roster: null,
         attendance: null
     };
-
-    let dataPath = "data/";
 
     let attendanceHtml = fs.readFileSync(dataPath + classId + '_attendance.html', 'utf8');
     let attendanceData = tabletojson.convert(attendanceHtml)[0];
@@ -254,12 +255,14 @@ function getContactQueueData(active, lastSundayDateFormatted){
         ];
     });
 
-    //add header
-    var header = ['Date Added', 'Last Name', 'First Name(s)', 'Last Present', 'Contact Reason', 'Contacted By', 'Contact Notes'];
-    formattedContactQueue.unshift(header);
+    if (formattedContactQueue.length > 0) {
+        //add header
+        var header = ['Date Added', 'Last Name', 'First Name(s)', 'Last Present', 'Contact Reason', 'Contacted By', 'Contact Notes'];
+        formattedContactQueue.unshift(header);
 
-    //add space row
-    formattedContactQueue.push(['--------']);
+        //add space row
+        formattedContactQueue.push(['--------']);
+    }
 
     return formattedContactQueue;
 }
@@ -305,9 +308,11 @@ function getRosterData(active, filter) {
         ];
     });
 
-    //add header
-    var header = ['Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role', 'Last Present'];
-    formatted.unshift(header);
+    if (formatted.length > 0) {
+        //add header
+        var header = ['Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role', 'Last Present'];
+        formatted.unshift(header);
+    }
 
     return formatted;
 }
@@ -342,9 +347,11 @@ function getVisitorData(active, filter) {
         return mapped;
     });
 
-    //add header
-    var header = ['First Visit', 'Last Visit', 'Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role'];
-    formatted.unshift(header);
+    if (formatted.length > 0) {
+        //add header
+        var header = ['First Visit', 'Last Visit', 'Last Name', 'First Name', 'Gender', 'DOB', 'Email', 'Cell Phone', 'Mobile Phone', 'Address', 'City, State Zip', 'Role'];
+        formatted.unshift(header);
+    }
 
     return formatted;
 }
@@ -392,7 +399,8 @@ function generateEmailList(source, filter){
 
 }
 
-if (!argv.scrape){
+
+if (argv.scrape == false){
     startUpdateSheets();
 } else {
     startScrape();

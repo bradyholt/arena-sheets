@@ -7,6 +7,13 @@ var config = require('../config');
 var _ = require('../node_modules/lodash');
 
 var dataOutPath = "./data/";
+var onlyClassId = null;
+if (casper.cli.args[0]) {
+    dataOutPath = casper.cli.args[0];
+}
+if (casper.cli.args[1]) {
+    onlyClassId = casper.cli.args[1];
+}
 
 setupDebug();
 setupDataDirectory();
@@ -48,6 +55,9 @@ casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(
       casper.then(function(){
           writeMetaFile(classes);
           classes.forEach(function(c){
+              if (onlyClassId && c.id != onlyClassId) {
+                  return;
+              }
               casper.echo("Queuing download of data for: " + c.name + " (" + c.id + ")");
               downloadRoster(c.id, c.name);
               downloadAttendance(c.id, c.name);
