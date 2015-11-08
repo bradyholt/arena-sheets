@@ -6,3 +6,5 @@ config.json
 ansible/**/production
 scratch.js
 *.log
+client_secret*.json
+*_token.txt
