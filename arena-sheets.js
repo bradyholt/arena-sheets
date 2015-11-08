@@ -25,7 +25,7 @@ function startScrape() {
 }
 
 function startUpdateSheets(){
-    let oauth2Client = new OAuth2Client(config.client_id, config.client_secret, 'http://www.myauthorizedredirecturl.com');
+    let oauth2Client = new OAuth2Client(config.client_id, config.client_secret);
 
     oauth2Client.setCredentials({
         access_token: config.access_token,
@@ -48,7 +48,7 @@ function updateSheets(oauth2Client) {
 
     var worksheets = [
         { name: 'Contact Queue', rows: 100, col: 15 },
-        { name: 'Roster', rows: 100, col: 15 },
+        { name: 'Members', rows: 100, col: 15 },
         { name: 'Visitors', rows: 100, col: 15 },
         { name: 'Attendance', rows: 100, col: 15 },
         { name: 'Email Lists', rows: 100, col: 15 }
@@ -98,7 +98,7 @@ function updateSheets(oauth2Client) {
                 worksheets: worksheets
             }).then(function(sheetData) {
                     spreadsheetsHelper.prependWorksheet(currentClass.id, sheetData, 'Contact Queue', oauth2, contactQueue, true, lastSundayDateFormatted, 100);
-                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Roster', oauth2, members);
+                    spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Members', oauth2, members);
                     spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
                     spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
                     spreadsheetsHelper.updateWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
@@ -118,7 +118,9 @@ function readData(classId, lastSundayDate) {
         attendance: null
     };
 
-    let attendanceHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_attendance.html', 'utf8');
+    let dataPath = "data/";
+
+    let attendanceHtml = fs.readFileSync(dataPath + classId + '_attendance.html', 'utf8');
     let attendanceData = tabletojson.convert(attendanceHtml)[0];
     let attendanceMappedByFullName = {};
 
@@ -165,7 +167,7 @@ function readData(classId, lastSundayDate) {
         });
     }
 
-    let rosterHtml = fs.readFileSync(config.scrape_data_path + '/' + classId + '_roster.html', 'utf8');
+    let rosterHtml = fs.readFileSync(dataPath + classId + '_roster.html', 'utf8');
     let rosterData = tabletojson.convert(rosterHtml)[0];
 
     if (rosterData && rosterData.length) {
@@ -253,7 +255,7 @@ function getContactQueueData(active, lastSundayDateFormatted){
     });
 
     //add header
-    var header = ['Date Added', 'Last Name', 'First Name(s)', 'Last Sunday Attendance', 'Reason', 'Contacted By', 'Contact Notes'];
+    var header = ['Date Added', 'Last Name', 'First Name(s)', 'Last Present', 'Contact Reason', 'Contacted By', 'Contact Notes'];
     formattedContactQueue.unshift(header);
 
     //add space row

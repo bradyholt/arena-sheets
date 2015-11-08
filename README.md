@@ -7,9 +7,9 @@ Pulls data out of Shelby Arena and pushes to Google Sheets
 - Add credentials for "Other" application type
 - Download client secrets file; rename to client_secrets.json and place in root directory
 - Populate config.json with 'client_id', 'client_secret' found in client_secrets.json
-- Run get-google-refresh-token.rb and follow instructions
-- access_token.txt and refresh_token.txt will be written after following instructions
-- Populate config.json with 'access_token' from access_token.txt and 'refresh_token' from refresh_token.txt.
+- Run auth/get-google-refresh-token.rb and follow instructions
+- access_token.txt and refresh_token.txt will be created after following instructions
+- Populate config.json with 'access_token' from access_token.txt and 'refresh_token' fromrefresh_token.txt.
 
 ## Config
 The following files need to be created before use.  There are [file].example files for each of these to guide construction.

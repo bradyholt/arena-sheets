@@ -3,9 +3,8 @@
     "client_secret": "",
     "access_token": "",
     "refresh_token": "",
-    "template_spreadsheet_id": "",
+    "template_spreadsheet_id": "177eV4FvI5iCmYEODPC2B78fM_6TgrlRYU9AjSptc8s4",
     "arena_url": "",
     "arena_username": "",
-    "arena_password": "",
-    "scrape_data_path": ""
+    "arena_password": ""
 }

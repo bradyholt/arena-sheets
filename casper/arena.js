@@ -6,10 +6,7 @@ var fs = require('fs');
 var config = require('../config');
 var _ = require('../node_modules/lodash');
 
-dataOutPath = "./data/";
-if (casper.cli.args[0]) {
-    dataOutPath = casper.cli.args[0];
-}
+var dataOutPath = "./data/";
 
 setupDebug();
 setupDataDirectory();
