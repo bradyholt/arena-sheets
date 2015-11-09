@@ -3,6 +3,7 @@ debug/
 node_modules/
 config.json
 ansible/**/production
+ansible/hosts
 scratch.js
 *.log
 client_secret*.json
