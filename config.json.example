@@ -10,6 +10,7 @@
     "class_settings": {
         "2390": { "skip": true },
         "2391": {
+            "name": "Overridden Class Name",
             "contactQueue": [
                 { "reason": "First Time Visitor", "filter": { "isMember": false, "firstPresentWeeksAgo": 0} },
                 { "reason": "Member Absent 3 Weeks", "filter": { "isMember": true, "lastPresentWeeksAgo": 4} },

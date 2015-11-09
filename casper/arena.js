@@ -54,6 +54,10 @@ casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(
               }
 
               var name = link.text();
+              if (class_settings && class_settings[id] && class_settings[id].name) {
+                  //overridden class name
+                  name = class_settings[id].name;
+              }
 
               //append room number to name
               var room = $(this).find('td:last');
