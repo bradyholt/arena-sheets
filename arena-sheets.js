@@ -14,6 +14,7 @@ var tabletojson = require('tabletojson');
 let argv = require('minimist')(process.argv.slice(2));
 
 const DATA_PATH = "data/";
+const KEEP_MAX_CONTACT_QUEUE_RECORDS = 100;
 const WORKSHEETS = [
     { name: 'Contact Queue', rows: 100, col: 15 },
     { name: 'Members', rows: 100, col: 15 },
@@ -25,8 +26,8 @@ const DEFALT_CLASS_SETTINGS = {
     skip: false,
     contactQueueItems: [
         { reason: "First Time Visitor", "filter": { isMember: false, firstPresentWeeksAgo: 0} },
-        { reason: "Member Absent 3 Weeks", "filter": { isMember: true, lastPresentWeeksAgo: 4} },
-        { reason: "Member 2 Months", "filter": { isMember: true, lastPresentWeeksAgo: 9} }
+        { reason: "Member Absent 3 Weeks", "filter": { isMember: true, lastPresentWeeksAgo: 3} },
+        { reason: "Member Absent 2 Months", "filter": { isMember: true, lastPresentWeeksAgo: 8} }
     ]
 };
 
@@ -53,11 +54,6 @@ function updateSheetsWithAuthentication(oauth2Client) {
         refresh_token: config.refresh_token
     };
 
-    let todaysDate = new Date();
-    let todaysDateAtMidnight = new Date(todaysDate.getFullYear(), todaysDate.getMonth(), todaysDate.getDate())
-    let lastSundayDate = dateHelper.getLastSunday(todaysDateAtMidnight);
-    let lastSundayDateFormatted = (lastSundayDate.getMonth() + 1) + "/" + (lastSundayDate.getDate()) + "/" + lastSundayDate.getFullYear();
-
     classes.forEach(function(currentClass){
         let _this = this;
 
@@ -66,33 +62,34 @@ function updateSheetsWithAuthentication(oauth2Client) {
         }
 
         try {
-            let classData = arenaDataManager.readData(DATA_PATH, currentClass.id, lastSundayDate);
+            let classData = arenaDataManager.readData(DATA_PATH, currentClass.id);
 
-            if (!classData.roster || !classData.attendance // roster or attendance data not available
-                || !_.contains(classData.attendance.dates, lastSundayDateFormatted) // data for last Sunday not available
-            ) {
-                //return;
+            if (!classData.roster || !classData.attendance){ // roster or attendance data not available
+                console.log("Data not available for classId=" + currentClass.id);
+                return;
             }
 
-            let active = _.filter(classData.roster, function(d) {
+            let lastestAttendanceDate = classData.attendance.dates[0];
+
+            let activeRoster = _.filter(classData.roster, function(d) {
                 return d.isActive;
             });
 
             let classSettings = _.defaultsDeep((config.class_settings[currentClass.id] || {}), DEFALT_CLASS_SETTINGS);
 
             //go ahead and prep data before we talk to the Google API
-            let contactQueue = arenaDataManager.getContactQueueData(active, lastSundayDateFormatted, classSettings.contactQueueItems);
-            let members = arenaDataManager.getRosterData(active);
-            let visitors = arenaDataManager.getVisitorData(active);
+            let contactQueue = arenaDataManager.getContactQueueData(activeRoster, lastestAttendanceDate, classSettings.contactQueueItems);
+            let members = arenaDataManager.getMemberData(activeRoster);
+            let visitors = arenaDataManager.getVisitorData(activeRoster);
             let attendance = arenaDataManager.getAttendanceData(classData.attendance);
-            let emailLists = arenaDataManager.getEmailLists(active);
+            let emailLists = arenaDataManager.getEmailLists(activeRoster);
 
             spreadsheets.prepSheet( {
                 name: currentClass.name,
                 templateId: config.template_spreadsheet_id,
                 worksheets: WORKSHEETS
             }).then(function(sheetData) {
-                    sheetsEditor.prependWorksheet(currentClass.id, sheetData, 'Contact Queue', oauth2, contactQueue, true, lastSundayDateFormatted, 100);
+                    sheetsEditor.prependWorksheet(currentClass.id, sheetData, 'Contact Queue', oauth2, contactQueue, true, lastestAttendanceDate, KEEP_MAX_CONTACT_QUEUE_RECORDS);
                     sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Members', oauth2, members);
                     sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
                     sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
