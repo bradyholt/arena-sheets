@@ -1,17 +1,20 @@
 "use strict";
 
-let config = require('./config');
-let _ = require('lodash');
 let fs = require('fs');
+
+let logger = require('winston');
+let argv = require('minimist')(process.argv.slice(2));
+let tabletojson = require('tabletojson');
 let google = require('googleapis');
 let OAuth2Client = google.auth.OAuth2;
+let _ = require('lodash');
+
+let config = require('./config');
 let scraperWraper = require('./lib/scraper-wrapper');
 let sheetsManager = require('./lib/sheets-manager');
 let sheetsEditor = require('./lib/sheets-editor');
 let arenaDataManager = require('./lib/arena-data-manager');
 let dateHelper = require('./lib/date-helper');
-var tabletojson = require('tabletojson');
-let argv = require('minimist')(process.argv.slice(2));
 
 const DATA_PATH = "data/";
 const KEEP_MAX_CONTACT_QUEUE_RECORDS = 100;
@@ -31,14 +34,20 @@ const DEFALT_CLASS_SETTINGS = {
     ]
 };
 
+logger.add(logger.transports.File, { filename: 'arena-sheets.log' });
+
 function scapeData() {
+    logger.info("Will scrape data...");
     return scraperWraper.startScrape({
         data_path: DATA_PATH,
         class_id: argv.class_id
+    }).catch(function(code){
+        logger.error("Error returned from scrape process", {code: code});
     });
 }
 
 function updateSheets(){
+    logger.info("Will update sheets...");
     return googleAuthenticate().then(function(oauth2Client){
         updateSheetsWithAuthentication(oauth2Client);
     })
@@ -61,23 +70,29 @@ function updateSheetsWithAuthentication(oauth2Client) {
             return;
         }
 
+        logger.info("Starting sheets update", { class_id: currentClass.id });
+
         try {
             let classData = arenaDataManager.readData(DATA_PATH, currentClass.id);
 
-            if (!classData.roster || !classData.attendance){ // roster or attendance data not available
-                console.log("Data not available for classId=" + currentClass.id);
+            if (!classData.roster){
+                logger.info("Roster data not available; will skip class", { class_id: currentClass.id });
+                return;
+            } else if (!classData.roster){
+                logger.info("Attedance data not available; will skip class", { class_id: currentClass.id });
                 return;
             }
 
             let lastestAttendanceDate = classData.attendance.dates[0];
-
             let activeRoster = _.filter(classData.roster, function(d) {
                 return d.isActive;
             });
 
+            logger.info("Loading class settings", { class_id: currentClass.id });
             let classSettings = _.defaultsDeep((config.class_settings[currentClass.id] || {}), DEFALT_CLASS_SETTINGS);
 
             //go ahead and prep data before we talk to the Google API
+            logger.info("Generating formatted sheets data", { class_id: currentClass.id });
             let contactQueue = arenaDataManager.getContactQueueData(activeRoster, lastestAttendanceDate, classSettings.contactQueueItems);
             let members = arenaDataManager.getMemberData(activeRoster);
             let visitors = arenaDataManager.getVisitorData(activeRoster);
@@ -94,12 +109,11 @@ function updateSheetsWithAuthentication(oauth2Client) {
                     sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
                     sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
                     sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
-
-                }).catch(function(err) {
-                    console.log(err);
-                });
+            }).catch(function(err) {
+                logger.error("Error when preparing spreadsheet", { class_id: currentClass.id });
+            });
         } catch(e) {
-            console.log("Error when processing data for classId: " + currentClass.id + " - " + e);
+            logger.error("Error on sheets update", { class_id: currentClass.id, error: e.stack });
         }
     });
 }
@@ -114,20 +128,27 @@ function googleAuthenticate(){
         });
 
         try {
+            logger.info("Attempting to refresh Google API access token");
             oauth2Client.refreshAccessToken(function(err, tokens) {
                 oauth2Client.setCredentials({
                     access_token: tokens.access_token,
                     refresh_token: tokens.refresh_token
                 });
 
+                logger.info("Google API access token successfully refreshed");
                 resolve(oauth2Client);
             });
         } catch(e){
+            logger.info("Failure when attempting to refresh Google API access token", { error: e });
             reject(e);
         }
     });
 
     return promise;
+}
+
+if (argv.class_id) {
+    logger.info("Single class mode!", {class_id: argv.class_id});
 }
 
 if (argv.help == true || _.contains(argv._, 'help')){
@@ -143,7 +164,5 @@ if (argv.help == true || _.contains(argv._, 'help')){
 } else {
     scapeData().then(function(){
         updateSheets();
-    }).catch(function(code){
-        console.log('Scrape process exited with error code: ' + code);
     });
 }

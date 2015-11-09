@@ -15,7 +15,7 @@ Pulls data out of Shelby Arena and pushes to Google Sheets
 The following files need to be created before use.  There are [file].example files for each of these to guide construction.
 
 - config.json
-- ansible/production
+- ansible/hosts
 - ansible/group_vars/production
 
 ## Scripts
@@ -28,4 +28,3 @@ The following files need to be created before use.  There are [file].example fil
 - Logging
 - Exception handling
 - Email list of failures
-- Fix dates (last Sunday, today, what "Date Added" gets added on Contact Queue)
