@@ -1,0 +1,3 @@
+app_name: arena-sheets
+app_main: arena-sheets.js
+deploy_directory: "/home/{{ deploy_user }}/apps/{{ app_name }}"
