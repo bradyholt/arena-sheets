@@ -3,6 +3,7 @@
 let fs = require('fs');
 
 let logger = require('winston');
+let moment = require('moment');
 let argv = require('minimist')(process.argv.slice(2));
 let tabletojson = require('tabletojson');
 let google = require('googleapis');
@@ -17,6 +18,7 @@ let arenaDataManager = require('./lib/arena-data-manager');
 let dateHelper = require('./lib/date-helper');
 
 const DATA_PATH = "data/";
+const LOG_PATH = "log/";
 const KEEP_MAX_CONTACT_QUEUE_RECORDS = 100;
 const WORKSHEETS = [
     { name: 'Contact Queue', rows: 100, col: 15 },
@@ -34,7 +36,9 @@ const DEFALT_CLASS_SETTINGS = {
     ]
 };
 
-logger.add(logger.transports.File, { filename: 'arena-sheets.log' });
+var logFileName = new moment().format("YYYYMMDD_HHmmss") + ".log";
+fs.existsSync(LOG_PATH) || fs.mkdirSync(LOG_PATH);
+logger.add(logger.transports.File, { filename: LOG_PATH + logFileName });
 
 function scapeData() {
     logger.info("Will scrape data...");
@@ -99,6 +103,7 @@ function updateSheetsWithAuthentication(oauth2Client) {
             let attendance = arenaDataManager.getAttendanceData(classData.attendance);
             let emailLists = arenaDataManager.getEmailLists(activeRoster);
 
+            logger.info("Preparing spreadsheet for update", { class_id: currentClass.id });
             spreadsheets.prepSheet( {
                 name: currentClass.name,
                 templateId: config.template_spreadsheet_id,
@@ -110,7 +115,7 @@ function updateSheetsWithAuthentication(oauth2Client) {
                     sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
                     sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
             }).catch(function(err) {
-                logger.error("Error when preparing spreadsheet", { class_id: currentClass.id });
+                logger.error("Error when preparing spreadsheet", { class_id: currentClass.id, error: err.stack });
             });
         } catch(e) {
             logger.error("Error on sheets update", { class_id: currentClass.id, error: e.stack });
