@@ -2,10 +2,12 @@
 - name: provision
   hosts: all
   vars:
+    swap_file_size: 4G
     nodesource_version: setup_4.x
     timzezone: America/Chicago
   remote_user: root
   roles:
+    - swapfile
     - timezone
     - user-config
     - nodejs
