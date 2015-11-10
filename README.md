@@ -1,5 +1,5 @@
 # arena-sheets
-Pulls data out of Shelby Arena and pushes to Google Sheets
+Pull data out of [Shelby Arena](http://www.shelbysystems.com/products/arena/) and push to Google Sheets
 
 ## Creating Google Project
 
@@ -22,3 +22,4 @@ The following files need to be created before use.  There are [file].example fil
 
 - **npm run provision** - Provisions a server to host this app (Ubuntu 14 is assumed)
 - **npm run deploy** - Deploys the app to the provisioned server
+- **npm run start** - Runs arena-sheets
