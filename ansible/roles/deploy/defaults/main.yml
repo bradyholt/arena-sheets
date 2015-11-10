@@ -1,0 +1,15 @@
+---
+logrotate_compress:           'yes'
+logrotate_conf_name:          '{{ app_name }}'
+logrotate_delay_compress:     'yes'
+logrotate_file_permissions:   0644
+logrotate_log_dir:            '{{ deploy_directory }}/log'
+logrotate_log_extension:      'log'
+logrotate_ignore_empty:       'yes'
+logrotate_ignore_missing:     'yes'
+logrotate_rotate_frequency:   'monthly'
+logrotate_rotate_count:       7
+logrotate_rotate_size:        '10M'
+logrotate_use_date_extension: 'yes'
+logrotate_user:               '{{ deploy_user }}'
+logrotate_user_group:         '{{ deploy_user }}'

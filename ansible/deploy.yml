@@ -1,6 +1,8 @@
 ---
 - name: deploy
   hosts: all
+  vars:
+    jobs: [{ name: "job 1", weekday: 1, hour: 12 }, { name: "job 2", weekday: 2, hour: 12 }, { name: "job 3", weekday: 3, hour: 12 }]
   remote_user: "{{ deploy_user }}"
   roles:
     - deploy

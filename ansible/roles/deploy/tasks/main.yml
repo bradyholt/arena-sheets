@@ -2,12 +2,15 @@
   synchronize: src=../../../../ dest={{ deploy_directory }} delete=yes rsync_opts=--exclude=.git/,--exclude=log/,--exclude=node_modules/,--exclude=tmp/cache
 - name: npm install
   npm: path={{ deploy_directory }}
-- name: cron - Monday at noon
-  cron: name="arena-sheets" minute="0" hour="12" weekday="1"
-    job="node {{ deploy_directory }}/{{ app_main }}"
-- name: cron - Tuesday at noon
-  cron: name="arena-sheets" minute="0" hour="12" weekday="2"
-    job="node {{ deploy_directory }}/{{ app_main }}"
-- name: cron - Wednesday at noon
-  cron: name="arena-sheets" minute="0" hour="12" weekday="3"
-    job="node {{ deploy_directory }}/{{ app_main }}"
+- name: setup cron cron
+  cron: name="arena-sheets {{ item.name }}" minute="0" hour="{{ item.hour }}" weekday="{{ item.weekday }}"
+    job="cd {{ deploy_directory }}; node {{ app_main }}"
+  with_items: "{{jobs}}"
+- name: 'Copy the logrotate template to /etc/logrotate.d'
+  tags: 'logrotate'
+  sudo: 'yes'
+  template: >
+    src=logrotate_config.j2
+    dest=/etc/logrotate.d/{{ app_name }}
+    owner=root
+    group=root

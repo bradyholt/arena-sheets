@@ -1,0 +1,18 @@
+{{ logrotate_log_dir }}/*.{{ logrotate_log_extension }} {
+    rotate {{ logrotate_rotate_count }}
+    {{ logrotate_rotate_frequency }}
+    size {{ logrotate_rotate_size }}
+    {% if logrotate_compress == 'yes' %}
+    compress
+    {% if logrotate_delay_compress == 'yes' %}
+    delaycompress
+    {% endif %}
+    {% endif %}
+    {% if logrotate_ignore_missing == 'yes' %}
+    missingok
+    {% endif %}
+    {% if logrotate_ignore_empty == 'yes' %}
+    notifempty
+    {% endif %}
+    create {{ logrotate_file_permissions }} {{ logrotate_user }} {{ logrotate_user_group }}
+}
