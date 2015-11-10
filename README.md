@@ -1,5 +1,5 @@
 # arena-sheets
-Pull data out of Shelby Arena and push to Google Sheets
+Pull data out of [Shelby Arena](http://www.shelbysystems.com/products/arena/) and push to Google Sheets
 
 ## Creating Google Project
 
