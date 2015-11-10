@@ -25,7 +25,8 @@ const WORKSHEETS = [
     { name: 'Members', rows: 100, col: 15 },
     { name: 'Visitors', rows: 100, col: 15 },
     { name: 'Attendance', rows: 100, col: 15 },
-    { name: 'Email Lists', rows: 100, col: 15 }
+    { name: 'Email Lists', rows: 100, col: 15 },
+    { name: 'Inactive', rows: 100, col: 15 }
 ];
 const DEFALT_CLASS_SETTINGS = {
     skip: false,
@@ -89,7 +90,11 @@ function updateSheetsWithAuthentication(oauth2Client) {
 
             let lastestAttendanceDate = classData.attendance.dates[0];
             let activeRoster = _.filter(classData.roster, function(d) {
-                return d.isActive;
+                return d.isActive && !d.isActiveMIA;
+            });
+
+            let inactiveRoster = _.filter(classData.roster, function(d) {
+                return !d.isActive || d.isActiveMIA;
             });
 
             logger.info("Loading class settings", { class_id: currentClass.id });
@@ -97,13 +102,15 @@ function updateSheetsWithAuthentication(oauth2Client) {
 
             //go ahead and prep data before we talk to the Google API
             logger.info("Generating formatted sheets data", { class_id: currentClass.id });
-            let contactQueue = arenaDataManager.getContactQueueData(activeRoster, lastestAttendanceDate, classSettings.contactQueueItems);
-            let members = arenaDataManager.getMemberData(activeRoster);
-            let visitors = arenaDataManager.getVisitorData(activeRoster);
-            let attendance = arenaDataManager.getAttendanceData(classData.attendance);
-            let emailLists = arenaDataManager.getEmailLists(activeRoster);
+            let contactQueue = arenaDataManager.getFormattedContactQueue(activeRoster, lastestAttendanceDate, classSettings.contactQueueItems);
+            let members = arenaDataManager.getFormattedMembers(activeRoster);
+            let visitors = arenaDataManager.getFormattedVisitors(activeRoster);
+            let attendance = arenaDataManager.getFormattedAttendance(classData.attendance);
+            let emailLists = arenaDataManager.getFormattedEmailLists(activeRoster);
+            let inactive = arenaDataManager.getFormattedInactive(inactiveRoster);
 
             logger.info("Preparing spreadsheet for update", { class_id: currentClass.id });
+
             spreadsheets.prepSheet( {
                 name: currentClass.name,
                 templateId: config.template_spreadsheet_id,
@@ -125,6 +132,7 @@ function updateSheetsWithAuthentication(oauth2Client) {
                     editor.overwriteWorksheet('Visitors', visitors);
                     editor.overwriteWorksheet('Attendance', attendance);
                     editor.overwriteWorksheet('Email Lists', emailLists);
+                    editor.overwriteWorksheet('Inactive', inactive);
             }).catch(function(err) {
                 logger.error("Error when preparing spreadsheet", { class_id: currentClass.id, error: err.stack });
             });
