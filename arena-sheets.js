@@ -107,13 +107,24 @@ function updateSheetsWithAuthentication(oauth2Client) {
             spreadsheets.prepSheet( {
                 name: currentClass.name,
                 templateId: config.template_spreadsheet_id,
-                worksheets: WORKSHEETS
-            }).then(function(sheetData) {
-                    sheetsEditor.prependWorksheet(currentClass.id, sheetData, 'Contact Queue', oauth2, contactQueue, true, lastestAttendanceDate, KEEP_MAX_CONTACT_QUEUE_RECORDS);
-                    sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Members', oauth2, members);
-                    sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Visitors', oauth2, visitors);
-                    sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Attendance', oauth2, attendance);
-                    sheetsEditor.overwriteWorksheet(currentClass.id, sheetData, 'Email Lists', oauth2, emailLists);
+                worksheets: WORKSHEETS,
+                debug: (argv.debug || false)
+            }).then(function(sheetMeta) {
+                    let editor = new sheetsEditor(oauth2, currentClass.id, sheetMeta, {
+                        debug: (argv.debug || false)
+                    });
+
+                    editor.prependWorksheet('Contact Queue', contactQueue, {
+                        dataHasHeader: true,
+                        skipIfFirstRowFirstCellValueEquals: lastestAttendanceDate,
+                        maxExistingRows: KEEP_MAX_CONTACT_QUEUE_RECORDS
+
+                    });
+
+                    editor.overwriteWorksheet('Members', members);
+                    editor.overwriteWorksheet('Visitors', visitors);
+                    editor.overwriteWorksheet('Attendance', attendance);
+                    editor.overwriteWorksheet('Email Lists', emailLists);
             }).catch(function(err) {
                 logger.error("Error when preparing spreadsheet", { class_id: currentClass.id, error: err.stack });
             });
@@ -162,6 +173,7 @@ if (argv.help == true || _.contains(argv._, 'help')){
     console.log("     --no-scrape       Do not scrape Arena; only process /data directory and update sheets");
     console.log("     --no-sheets       Do not update Google Sheets; only scrape Arena data");
     console.log("     --class_id id     Only process a single class");
+    console.log("     --debug           Output additional debug logging to console");
 } else if (argv.scrape == false){
     updateSheets();
 } else if (argv.sheets == false){
