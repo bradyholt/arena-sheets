@@ -2,6 +2,12 @@
   synchronize: src=../../../../ dest={{ deploy_directory }} delete=yes rsync_opts=--exclude=.git/,--exclude=log/,--exclude=node_modules/,--exclude=tmp/cache
 - name: npm install
   npm: path={{ deploy_directory }}
-- name: setup cron job
-  cron: name="arena-sheets" minute="0" hour="8" weekday="1"
+- name: cron - Monday at noon
+  cron: name="arena-sheets" minute="0" hour="12" weekday="1"
+    job="node {{ deploy_directory }}/{{ app_main }}"
+- name: cron - Tuesday at noon
+  cron: name="arena-sheets" minute="0" hour="12" weekday="2"
+    job="node {{ deploy_directory }}/{{ app_main }}"
+- name: cron - Wednesday at noon
+  cron: name="arena-sheets" minute="0" hour="12" weekday="3"
     job="node {{ deploy_directory }}/{{ app_main }}"
