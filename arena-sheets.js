@@ -10,7 +10,7 @@ let google = require('googleapis');
 let OAuth2Client = google.auth.OAuth2;
 let _ = require('lodash');
 
-let config = require('./config');
+let config = require('./config/app');
 let scraperWraper = require('./lib/scraper-wrapper');
 let sheetsManager = require('./lib/sheets-manager');
 let sheetsEditor = require('./lib/sheets-editor');

@@ -2,9 +2,9 @@ data*/
 debug/
 log/
 node_modules/
-config.json
-ansible/**/production
-ansible/hosts
+/config/app.json
+config/**/production
+config/hosts
 scratch.js
 *.log
 client_secret*.json

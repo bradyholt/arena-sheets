@@ -7,8 +7,8 @@
   "author": "Brady Holt",
   "license": "MIT",
   "scripts": {
-    "provision": "ansible-playbook -l production -i ansible/hosts ansible/provision.yml",
-    "deploy": "ansible-playbook  -l production -i ansible/hosts ansible/deploy.yml",
+    "provision": "ansible-playbook -l production -i ./config/hosts ./config/provision.yml",
+    "deploy": "ansible-playbook  -l production -i ./config/hosts ./config/deploy.yml",
     "scrape": "node arena-sheets.js --no-sheets",
     "sheets": "node arena-sheets.js --no-scrape",
     "start": "node arena-sheets.js"

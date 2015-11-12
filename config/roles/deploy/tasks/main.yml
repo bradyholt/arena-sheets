@@ -1,14 +1,20 @@
 - name: copy files
   synchronize: src=../../../../ dest={{ deploy_directory }} delete=yes rsync_opts=--exclude=.git/,--exclude=log/,--exclude=node_modules/,--exclude=tmp/cache
+  remote_user: "{{ deploy_user }}"
+- name: update config values
+  json_mod:
+    path: "{{ deploy_directory }}/config/app.json"
+    refresh_token: "{{ refresh_token }}"
+    access_token: "{{ access_token }}"
 - name: npm install
   npm: path={{ deploy_directory }}
-- name: setup cron cron
+- name: setup cron
   cron: name="arena-sheets {{ item.name }}" minute="0" hour="{{ item.hour }}" weekday="{{ item.weekday }}"
     job="cd {{ deploy_directory }}; node {{ app_main }}"
   with_items: "{{jobs}}"
+  remote_user: "{{ deploy_user }}"
 - name: 'Copy the logrotate template to /etc/logrotate.d'
   tags: 'logrotate'
-  sudo: 'yes'
   template: >
     src=logrotate_config.j2
     dest=/etc/logrotate.d/{{ app_name }}

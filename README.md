@@ -14,9 +14,9 @@ Pull data out of [Shelby Arena](http://www.shelbysystems.com/products/arena/) an
 ## Config
 The following files need to be created before use.  There are [file].example files for each of these to guide construction.
 
-- config.json
-- ansible/hosts
-- ansible/group_vars/production
+- **config/app.json** - Application config
+- **config/hosts** - Hosts inventory
+- **config/group_vars/production** - Production specific config  
 
 ## Scripts
 

@@ -3,7 +3,7 @@ var casper = require('casper').create({
 });
 var util = require('utils');
 var fs = require('fs');
-var config = require('../config');
+var config = require('../config/app');
 var _ = require('../node_modules/lodash');
 
 var dataOutPath = "./data/";
