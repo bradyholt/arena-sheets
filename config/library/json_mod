@@ -2,7 +2,6 @@
 
 var fs = require('fs');
 var args = fs.readFileSync(process.argv[2], 'utf8');
-fs.appendFile('FOO2', args);
 var changed = false;
 
 var jsonPath = null;
