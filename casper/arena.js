@@ -133,8 +133,8 @@ function downloadRoster(classId, className) {
 }
 
 function downloadAttendance(classId, className) {
-    var url = config.arena_url + '/default.aspx?page=3077&group=' + classId + '&tab=AggregateMembers';
-    casper.thenOpen(config.arena_url + '/default.aspx?page=3077&group=' + classId + '&tab=AggregateMembers').waitForText("CLICK HERE TO LOG OUT", function(){
+    var url = config.arena_url + '/default.aspx?page=3077&pagetab=3315&group=' + classId + '&tab=AggregateMembers';
+    casper.thenOpen(url).waitForText("CLICK HERE TO LOG OUT", function(){
          casper.echo("Attendance page loaded class_id=" + classId);
          var form_info = this.evaluate(function(){
             var res={};
