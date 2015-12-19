@@ -1,0 +1,7 @@
+- name: 'Copy the logrotate template to /etc/logrotate.d'
+  tags: 'logrotate'
+  template: >
+    src=logrotate_config.j2
+    dest=/etc/logrotate.d/{{ app_name }}
+    owner=root
+    group=root

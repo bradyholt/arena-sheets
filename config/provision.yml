@@ -11,3 +11,4 @@
     - timezone
     - user-config
     - nodejs
+    - logrotate
