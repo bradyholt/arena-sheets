@@ -3,7 +3,7 @@
 let fs = require('fs');
 
 let logger = require('winston');
-let moment = require('moment');
+let Moment = require('moment');
 let argv = require('minimist')(process.argv.slice(2));
 let tabletojson = require('tabletojson');
 let google = require('googleapis');
@@ -12,10 +12,10 @@ let _ = require('lodash');
 
 let config = require('./config/app');
 let scraperWraper = require('./lib/scraper-wrapper');
-let sheetsManager = require('./lib/sheets-manager');
-let sheetsEditor = require('./lib/sheets-editor');
 let arenaDataManager = require('./lib/arena-data-manager');
-let dateHelper = require('./lib/date-helper');
+
+let SheetsManager = require('./lib/sheets-manager');
+let SheetsEditor = require('./lib/sheets-editor');
 
 const DATA_PATH = "data/";
 const LOG_PATH = "log/";
@@ -38,7 +38,7 @@ const DEFALT_CLASS_SETTINGS = {
     ]
 };
 
-var logFileName = new moment().format("YYYYMMDD_HHmmss") + ".log";
+var logFileName = new Moment().format("YYYYMMDD_HHmmss") + ".log";
 fs.existsSync(LOG_PATH) || fs.mkdirSync(LOG_PATH);
 logger.add(logger.transports.File, { filename: LOG_PATH + logFileName });
 
@@ -60,7 +60,7 @@ function updateSheets(){
 }
 
 function updateSheetsWithAuthentication(oauth2Client) {
-    let spreadsheets = new sheetsManager(oauth2Client);
+    let sheetsManager = new SheetsManager(oauth2Client);
     let classes = require('./' + DATA_PATH + 'classes.json');
 
     let oauth2 = {
@@ -68,16 +68,31 @@ function updateSheetsWithAuthentication(oauth2Client) {
         client_secret: config.client_secret,
         refresh_token: config.refresh_token
     };
+    
+    var p = Promise.resolve();    
+    sheetsManager.init().then(function(){
+        classes.forEach(function(currentClass){
+            
+            if (!!argv.class_id && currentClass.id != argv.class_id) {
+                return;
+            }
+            
+            p = p.then(function(){
+                logger.info("Done updating class spreadsheet.", { class_id: currentClass.id });
+                return updateClassSheet(sheetsManager, oauth2, currentClass);
+            }).catch(function(reason){
+                logger.error("Error when updating class spreadsheet (but will continue on with next class)", { class_id: currentClass.id });
+                return updateClassSheet(sheetsManager, oauth2, currentClass);
+            });
+        });
+    });
+}
 
-    classes.forEach(function(currentClass){
-        let _this = this;
+function updateClassSheet(sheetsManager, oauth2, currentClass) {
+    logger.info("Starting sheets update", { class_id: currentClass.id });
 
-        if (!!argv.class_id && currentClass.id != argv.class_id) {
-            return;
-        }
-
-        logger.info("Starting sheets update", { class_id: currentClass.id });
-
+    let promise = new Promise(function(resolve, reject) {
+        
         try {
             let classData = arenaDataManager.readData(DATA_PATH, currentClass.id);
 
@@ -112,35 +127,43 @@ function updateSheetsWithAuthentication(oauth2Client) {
 
             logger.info("Preparing spreadsheet for update", { class_id: currentClass.id });
 
-            spreadsheets.prepSheet( {
+            sheetsManager.prepSheet( {
                 name: currentClass.name,
                 templateId: config.template_spreadsheet_id,
                 worksheets: WORKSHEETS,
-                debug: (argv.debug || false)
+                debug: (argv.trace || false)
             }).then(function(sheetMeta) {
-                    let editor = new sheetsEditor(oauth2, currentClass.id, sheetMeta, {
-                        debug: (argv.debug || false)
+                    let editor = new SheetsEditor(oauth2, currentClass.id, sheetMeta, {
+                        debug: (argv.trace || false)
                     });
-
-                    editor.prependWorksheet('Contact Queue', contactQueue, {
-                        dataHasHeader: true,
-                        skipIfFirstRowFirstCellValueEquals: lastestAttendanceDate,
-                        maxExistingRows: KEEP_MAX_CONTACT_QUEUE_RECORDS
-
-                    });
-
-                    editor.overwriteWorksheet('Members', members);
-                    editor.overwriteWorksheet('Visitors', visitors);
-                    editor.overwriteWorksheet('Attendance', attendance);
-                    editor.overwriteWorksheet('Email Lists', emailLists);
-                    editor.overwriteWorksheet('Inactive', inactive);
+                        let contactQueueUpdate = editor.prependWorksheet('Contact Queue', contactQueue, {
+                            dataHasHeader: true,
+                            colCountMin: 9,
+                            skipIfFirstRowFirstCellValueEquals: lastestAttendanceDate,
+                        });
+                       
+                        let membersUpdate = editor.overwriteWorksheet('Members', members);
+                        let visitorsUpdate = editor.overwriteWorksheet('Visitors', visitors);
+                        let attendanceUpdate = editor.overwriteWorksheet('Attendance', attendance);
+                        let emailListsUpdate = editor.overwriteWorksheet('Email Lists', emailLists);
+                        let inactiveUpdate = editor.overwriteWorksheet('Inactive', inactive);
+                        
+                        Promise.all([contactQueueUpdate, membersUpdate, visitorsUpdate, attendanceUpdate, emailListsUpdate, inactiveUpdate]).then(function(){
+                            resolve(currentClass); 
+                        }, function(err) {
+                            reject(err);
+                        });                    
             }).catch(function(err) {
                 logger.error("Error when preparing spreadsheet", { class_id: currentClass.id, error: err.stack });
+                reject(err);
             });
         } catch(e) {
             logger.error("Error on sheets update", { class_id: currentClass.id, error: e.stack });
+            reject(e);
         }
-    });
+   });
+   
+   return promise;
 }
 
 function googleAuthenticate(){
@@ -182,7 +205,7 @@ if (argv.help == true || _.contains(argv._, 'help')){
     console.log("     --no-scrape       Do not scrape Arena; only process /data directory and update sheets");
     console.log("     --no-sheets       Do not update Google Sheets; only scrape Arena data");
     console.log("     --class_id id     Only process a single class");
-    console.log("     --debug           Output additional debug logging to console");
+    console.log("     --trace           Output additional debug logging to console");
 } else if (argv.scrape == false){
     updateSheets();
 } else if (argv.sheets == false){
