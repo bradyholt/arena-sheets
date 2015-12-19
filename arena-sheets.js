@@ -32,7 +32,8 @@ const DEFALT_CLASS_SETTINGS = {
     skip: false,
     contactQueueItems: [
         { reason: "First Time Visitor", "filter": { isMember: false, firstPresentWeeksAgo: 0} },
-        { reason: "Member Absent 3 Weeks", "filter": { isMember: true, lastPresentWeeksAgo: 3} },
+        { reason: "Member Absent 2 Weeks", "filter": { isMember: true, lastPresentWeeksAgo: 2} },
+        { reason: "Member Absent 1 Months", "filter": { isMember: true, lastPresentWeeksAgo: 4} },
         { reason: "Member Absent 2 Months", "filter": { isMember: true, lastPresentWeeksAgo: 8} }
     ]
 };
