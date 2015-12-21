@@ -71,6 +71,8 @@ function updateSheetsWithAuthentication(oauth2Client) {
     
     var p = Promise.resolve();    
     sheetsManager.init().then(function(){
+        
+        //handle each class one at a time
         classes.forEach(function(currentClass){
             
             if (!!argv.class_id && currentClass.id != argv.class_id) {
