@@ -9,7 +9,7 @@ Pull data out of [Shelby Arena](http://www.shelbysystems.com/products/arena/) an
 - Populate config.json with 'client_id', 'client_secret' found in client_secrets.json
 - Run auth/get-google-refresh-token.rb and follow instructions
 - access_token.txt and refresh_token.txt will be created after following instructions
-- Populate config.json with 'access_token' from access_token.txt and 'refresh_token' from refresh_token.txt.
+- Populate config/app.json with 'access_token' from access_token.txt and 'refresh_token' from refresh_token.txt.
 
 ## Config
 The following files need to be created before use.  There are [file].example files for each of these to guide construction.
