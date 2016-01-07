@@ -101,9 +101,11 @@ function updateClassSheet(sheetsManager, oauth2, currentClass) {
 
             if (!classData.roster){
                 logger.info("Roster data not available; will skip class", { class_id: currentClass.id });
+                resolve(currentClass);
                 return;
             } else if (!classData.roster){
-                logger.info("Attedance data not available; will skip class", { class_id: currentClass.id });
+                logger.info("Attendance data not available; will skip class", { class_id: currentClass.id });
+                resolve(currentClass);
                 return;
             }
 
