@@ -2,6 +2,6 @@
 - name: deploy
   hosts: all
   vars:
-    jobs: [{ name: "job 1", weekday: 1, hour: 17 }]
+    jobs: [{ name: "job 1", weekday: 1, hour: 17 }, { name: "job 2", weekday: 2, hour: 17 }]
   roles:
     - deploy
