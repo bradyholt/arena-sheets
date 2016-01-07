@@ -46,7 +46,8 @@ function scapeData() {
     logger.info("Will scrape data...");
     return scraperWraper.startScrape({
         data_path: DATA_PATH,
-        class_id: argv.class_id
+        class_id: argv.class_id,
+        scrape_proxy: config.scrape_proxy
     }).catch(function(code){
         logger.error("Error returned from scrape process", {code: code});
     });
