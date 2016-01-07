@@ -1,5 +1,6 @@
 var casper = require('casper').create({
-    clientScripts: ['../node_modules/jquery/dist/jquery.js']
+    clientScripts: ['../node_modules/jquery/dist/jquery.js'],
+    waitTimeout: 10000
 });
 var util = require('utils');
 var fs = require('fs');
@@ -25,7 +26,7 @@ casper.start(config.arena_url + '/default.aspx?page=3062', function() {
     }, false);
 });
 
-casper.thenClick('#ctl08_ctl01_btnSignin').waitForText("Welcome!", function(){
+casper.thenClick('#ctl08_ctl01_btnSignin').waitForText("You are currently logged in", function(){
 	casper.echo("Login successful");
 });
 
@@ -37,7 +38,7 @@ casper.thenOpen(config.arena_url + '/default.aspx?page=3071').waitForText("You a
     }, false);
 }, null, 30000);
 
-casper.thenClick('input#ctl08_ctl02_dgGroups_ctl33_btnRefreshdgGroups');
+casper.thenClick('input#ctl08_ctl02_dgGroups_ctl34_btnRefreshdgGroups');
 
 casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(){
     casper.echo("Full class list page loaded");
