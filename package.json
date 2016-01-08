@@ -9,6 +9,7 @@
   "scripts": {
     "provision": "ansible-playbook -l production -i ./config/hosts ./config/provision.yml",
     "deploy": "ansible-playbook  -l production -i ./config/hosts ./config/deploy.yml",
+    "ssh": "ssh $(tail -n 1 config/hosts)",    
     "scrape": "node arena-sheets.js --no-sheets",
     "sheets": "node arena-sheets.js --no-scrape",
     "start": "node arena-sheets.js"
