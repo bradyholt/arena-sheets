@@ -24,3 +24,23 @@ The following files need to be created before use.  There are [file].example fil
 - **npm run deploy** - Deploys the app to the provisioned server
 - **npm run ssh** - Connects to the provisioned server via ssh
 - **npm run start** - Runs arena-sheets
+
+## Usage
+
+```
+usage: node arena-sheets.js [options]
+
+OPTIONS:
+     --no-scrape       Do not scrape Arena; only process /data directory and update sheets
+     --no-sheets       Do not update Google Sheets; only scrape Arena data
+     --class_id id     Only process a single class
+     --trace           Output additional debug logging to console
+```
+
+## Debugging
+
+To use the node debugger, run the app with `debug` argument and place `debugger;` statements as appropriate.
+
+```
+node debug arena-sheets.js --no-scrape --class_id 2177
+```
