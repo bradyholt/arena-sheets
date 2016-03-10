@@ -24,3 +24,7 @@ The following files need to be created before use.  There are [file].example fil
 - **npm run deploy** - Deploys the app to the provisioned server
 - **npm run ssh** - Connects to the provisioned server via ssh
 - **npm run start** - Runs arena-sheets
+
+## Misc
+
+- Debug: `node debug arena-sheets.js --no-scrape class_id=2177` (add `debugger;` statements)
