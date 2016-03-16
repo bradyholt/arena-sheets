@@ -115,7 +115,7 @@ function updateClassSheet(sheetsManager, oauth2, currentClass) {
             });
 
             let inactiveRoster = _.filter(classData.roster, function(d) {
-                return !d.isActive || d.isActiveMIA;
+                return d.isActive && d.isActiveMIA;
             });
 
             logger.info("Loading class settings", { class_id: currentClass.id });
