@@ -19,7 +19,7 @@
     "edit-google-spreadsheet": "^0.2.19",
     "googleapis": "^2.1.6",
     "jquery": "^1.11.3",
-    "lodash": "^3.10.1",
+    "lodash": "^4.6.1",
     "minimist": "^1.2.0",
     "moment": "^2.10.6",
     "phantomjs": "^1.9.8",

@@ -205,7 +205,7 @@ if (argv.class_id) {
     logger.info("Single class mode!", {class_id: argv.class_id});
 }
 
-if (argv.help == true || _.contains(argv._, 'help')){
+if (argv.help == true || _.includes(argv._, 'help')){
     console.log("usage: node arena-sheets.js [options]\n");
     console.log("OPTIONS:");
     console.log("     --no-scrape       Do not scrape Arena; only process /data directory and update sheets");
