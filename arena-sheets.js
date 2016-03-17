@@ -153,11 +153,12 @@ function updateClassSheet(sheetsManager, oauth2, currentClass) {
                         let emailListsUpdate = editor.overwriteWorksheet('Email Lists', emailLists);
                         let inactiveUpdate = editor.overwriteWorksheet('Inactive', inactive);
                         
-                        Promise.all([contactQueueUpdate, membersUpdate, visitorsUpdate, attendanceUpdate, emailListsUpdate, inactiveUpdate]).then(function(){
-                            resolve(currentClass); 
-                        }, function(err) {
-                            reject(err);
-                        });                    
+                        Promise.all([contactQueueUpdate, membersUpdate, visitorsUpdate, attendanceUpdate, emailListsUpdate, inactiveUpdate])
+                            .then(function(){
+                                resolve(currentClass); 
+                            }, function(err) {
+                                reject(err);
+                            });                    
             }).catch(function(err) {
                 logger.error("Error when preparing spreadsheet", { class_id: currentClass.id, error: err.stack });
                 reject(err);
