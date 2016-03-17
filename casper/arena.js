@@ -27,12 +27,12 @@ casper.start(config.arena_url + '/default.aspx?page=3062', function() {
 });
 
 casper.thenClick('#ctl08_ctl01_btnSignin').waitForText("You are currently logged in", function(){
-	casper.echo("Login successful");
+	casper.echo("Login successful\n");
 });
 
 casper.thenOpen(config.arena_url + '/default.aspx?page=3071').waitForText("You are currently logged in",
  function(){
-    casper.echo("Paged class list page loaded");
+    casper.echo("Paged class list page loaded\n");
     this.fillSelectors('form', {
 	'input.listItem': '200'
     }, false);
@@ -41,7 +41,7 @@ casper.thenOpen(config.arena_url + '/default.aspx?page=3071').waitForText("You a
 casper.thenClick('input.refreshButton');
 
 casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(){
-    casper.echo("Full class list page loaded");
+    casper.echo("Full class list page loaded\n");
     var classes = this.evaluate(function(class_settings){
           var classList = [];
           $('#ctl08_ctl02_dgGroups tr.listItem, #ctl08_ctl02_dgGroups tr.listAltItem').each(function() {
@@ -80,7 +80,7 @@ casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(
               if (onlyClassId && c.id != onlyClassId) {
                   return;
               }
-              casper.echo("Queuing download of data class_id=" + c.id);
+              casper.echo("Queuing download of data class_id=" + c.id + "\n");
               downloadRoster(c.id, c.name);
               downloadAttendance(c.id, c.name);
           });
@@ -89,14 +89,14 @@ casper.waitWhileSelector('a[href*="ctl08$ctl02$dgGroups$ctl28$ctl03"', function(
 
 function writeMetaFile(classes){
     var metaFilePath = dataOutPath + "classes.json";
-    casper.echo("Writing meta data to " + metaFilePath);
+    casper.echo("Writing meta data to " + metaFilePath + "\n");
     fs.write(dataOutPath + "classes.json", JSON.stringify(classes,null, 2), 'w');
 }
 
 function downloadRoster(classId, className) {
     var url = config.arena_url + '/default.aspx?page=3077&group=' + classId;
     casper.thenOpen(url).waitForText("CLICK HERE TO LOG OUT", function(){
-        casper.echo("Roster page loaded class_id=" + classId);
+        casper.echo("Roster page loaded class_id=" + classId + "\n");
         var form_info = this.evaluate(function(){
             var res={};
             var exportId = $("input[id$='_ibExport']").first().attr('id');
@@ -127,16 +127,16 @@ function downloadRoster(classId, className) {
             return res; //Return the form data to casper
          });
 
-         casper.echo("Start download of roster class_id=" + classId);
+         casper.echo("Start download of roster class_id=" + classId + "\n");
          casper.download(form_info.action, dataOutPath + classId + "_roster.html", "POST", form_info.post);
-         casper.echo("Download of roster finished class_id=" + classId);
+         casper.echo("Download of roster finished class_id=" + classId + "\n");
     });
 }
 
 function downloadAttendance(classId, className) {
     var url = config.arena_url + '/default.aspx?page=3077&pagetab=3315&group=' + classId + '&tab=AggregateMembers';
     casper.thenOpen(url).waitForText("CLICK HERE TO LOG OUT", function(){
-         casper.echo("Attendance page loaded class_id=" + classId);
+         casper.echo("Attendance page loaded class_id=" + classId + "\n");
          var form_info = this.evaluate(function(){
             var res={};
             var exportId = $("input[id$='_ibExport']").first().attr('id');
@@ -165,22 +165,22 @@ function downloadAttendance(classId, className) {
             return res; //Return the form data to casper
          });
 
-         casper.echo("Start download of attendance data class_id=" + classId);
+         casper.echo("Start download of attendance data class_id=" + classId + "\n");
          casper.download(form_info.action, dataOutPath + classId + "_attendance.html", "POST", form_info.post);
-         casper.echo("Download of attendance data finished class_id=" + classId);
+         casper.echo("Download of attendance data finished class_id=" + classId + "\n");
     });
 }
 
 casper.run();
 
 function setupDataDirectory(){
-    casper.echo("Deleting data directory " + dataOutPath);
+    casper.echo("Deleting data directory " + dataOutPath + "\n");
     fs.removeTree(dataOutPath);
 }
 
 function setupDebug(){
     var debugDirectory = 'debug/';
-    casper.echo("Deleting debug directory " + debugDirectory);
+    casper.echo("Deleting debug directory " + debugDirectory + "\n");
     fs.removeTree(debugDirectory);
 
     casper.on('load.finished', function(resource) {
@@ -207,6 +207,6 @@ function setupDebug(){
     });
 
     casper.on('open', function(location, settings) {
-        casper.echo("Requesting url " + location + " " + JSON.stringify(settings));
+        casper.echo("Requesting url " + location + " " + JSON.stringify(settings) + "\n");
     });
 }
