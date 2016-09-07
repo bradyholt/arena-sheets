@@ -25,8 +25,7 @@ const WORKSHEETS = [
     { name: 'Members', rows: 100, col: 15 },
     { name: 'Visitors', rows: 100, col: 15 },
     { name: 'Attendance', rows: 100, col: 15 },
-    { name: 'Email Lists', rows: 100, col: 15 },
-    { name: 'Inactive', rows: 100, col: 15 }
+    { name: 'Email Lists', rows: 100, col: 15 }
 ];
 const DEFALT_CLASS_SETTINGS = {
     skip: false,
@@ -111,11 +110,7 @@ function updateClassSheet(sheetsManager, oauth2, currentClass) {
 
             let lastestAttendanceDate = classData.attendance.dates[0];
             let activeRoster = _.filter(classData.roster, function(d) {
-                return d.isActive && !d.isActiveMIA;
-            });
-
-            let inactiveRoster = _.filter(classData.roster, function(d) {
-                return d.isActive && d.isActiveMIA;
+                return d.isActive;
             });
 
             logger.info("Loading class settings", { class_id: currentClass.id });
@@ -128,7 +123,6 @@ function updateClassSheet(sheetsManager, oauth2, currentClass) {
             let visitors = arenaDataManager.getFormattedVisitors(activeRoster);
             let attendance = arenaDataManager.getFormattedAttendance(classData.attendance);
             let emailLists = arenaDataManager.getFormattedEmailLists(activeRoster);
-            let inactive = arenaDataManager.getFormattedInactive(inactiveRoster);
 
             logger.info("Preparing spreadsheet for update", { class_id: currentClass.id });
 
@@ -151,9 +145,8 @@ function updateClassSheet(sheetsManager, oauth2, currentClass) {
                         let visitorsUpdate = editor.overwriteWorksheet('Visitors', visitors);
                         let attendanceUpdate = editor.overwriteWorksheet('Attendance', attendance);
                         let emailListsUpdate = editor.overwriteWorksheet('Email Lists', emailLists);
-                        let inactiveUpdate = editor.overwriteWorksheet('Inactive', inactive);
                         
-                        Promise.all([contactQueueUpdate, membersUpdate, visitorsUpdate, attendanceUpdate, emailListsUpdate, inactiveUpdate])
+                        Promise.all([contactQueueUpdate, membersUpdate, visitorsUpdate, attendanceUpdate, emailListsUpdate])
                             .then(function(){
                                 resolve(currentClass); 
                             }, function(err) {
